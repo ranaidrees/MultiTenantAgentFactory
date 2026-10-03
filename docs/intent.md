@@ -1,14 +1,15 @@
 # Intent: Multi-tenant AgentOps platform on Azure with Agent Factory
 
-Author: Rana Naveed Idrees. Status: accepted (revision 12). Owner decisions D1 to D55 recorded in section 14. Date: 2026-10-03.
+Author: Rana Naveed Idrees. Status: accepted (revision 13). Owner decisions D1 to D70 recorded in section 14. Date: 2026-10-03.
 Stage: 1 of 6 (Plan). Location: docs/intent.md. Next artifact: docs/spec-phase-0-1.md (Phases 0 and 1).
-Council record: docs/council/01-intent-review.md (revision 4) and docs/council/02-intent-review.md (revision 7); for the spec, docs/council/03-spec-phase-0-1-review.md
+Council record: docs/council/01-intent-review.md (revision 4) and docs/council/02-intent-review.md (revision 7); for the spec, docs/council/03-spec-phase-0-1-review.md and docs/council/04-spec-phase-0-1-principal-review.md (a single-reviewer pass with a currency audit)
 Revision 7 records the Stage 0 harness interview (D7 to D12) and amends the text those decisions contradict; each amendment is marked with its decision number.
 Revision 8 records the owner's response to council review 02 (D13 to D17). The review's other questions remain open for the spec.
 Revision 9 applies three cleanup corrections approved by the owner: the isolation test phases in section 13, question 4 removed (answered by D6) and question 8 pointed at D11.
 Revision 10 records D18 (the repository is to be made public).
 Revision 11 records the Stage 2 design interview (D19 to D36), amends the text those decisions contradict, and applies two unopposed corrections from council review 02, debate 7. Each amendment is marked with its decision number or source.
 Revision 12 records the Stage 2 spec gate (D37 to D55), held after council review 03 of the draft spec, and amends the text those decisions contradict. Each amendment is marked with its decision number. It also applies two cleanup corrections approved by the owner: the file name in the heading of section 7 and the mitigations in section 13.
+Revision 13 records the owner's decisions after principal review 04 of the revised spec (D56 to D70) and amends the text those decisions contradict. Each amendment is marked with its decision number.
 
 ## 1. Problem
 
@@ -59,18 +60,18 @@ Stop line (D30): the project counts as complete at the end of Phase 3. Phases 4 
 | RAG knowledge base | A tenant's indexed documents, exposed to agents as an MCP tool |
 | Template | Approved, versioned pattern the Factory fills in |
 | Agent spec | One-page, schema-validated request for a new agent, MCP server or knowledge base |
-| Attribution keys | tenant_id, agent_id, agent_version, environment, conversation_id, turn_id, graph_node, tool_name, model_deployment; present on every span the agent emits. Spans from salon-mcp and the gateway carry the keys they can know and join on the trace id (D54). Gateway metrics carry at most five of them, because the gateway metric policy allows five custom dimensions; the rest are span-only (council review 02, debate 7) |
+| Attribution keys | Nine keys on every span the agent emits: `gen_ai.agent.id`, `gen_ai.agent.version`, `gen_ai.conversation.id`, `gen_ai.tool.name` and `gen_ai.request.model`, which are the OpenTelemetry GenAI names for the agent, its version, the conversation, the tool and the model deployment (D59), and `tenant_id`, `environment`, `turn_id` and `graph_node` under one custom prefix. Spans from salon-mcp and the gateway carry the keys they can know and join on the trace id (D54). Gateway metrics carry at most five of them, because the gateway metric policy allows five custom dimensions; the rest are span-only (council review 02, debate 7) |
 
 ## 6. Phase 1 MVP in detail (highest impact first)
 
 1. **Salon agent** (LangGraph): intents book, cancel, FAQ, out of scope (reschedule dropped by D31; cancel then book covers it); FAQ answered from the tenant's knowledge with citations, and an answer citing a passage that was not returned is refused (D46); booking rules validated in code; confirmation interrupt before any write.
-2. **salon-mcp** on Container Apps: search_faq (keyword search in Phase 1, D45), get_availability, create_booking, cancel_booking; tenant_id taken from the authenticated caller; idempotent writes; append-only audit log; a cancellation needs the booking reference and the contact detail held on the booking (D33).
+2. **salon-mcp** on Container Apps: search_faq (keyword search in Phase 1, D45), get_availability, create_booking, cancel_booking; tenant_id taken from the authenticated caller; idempotent writes; append-only audit log; a cancellation needs the booking reference and the contact detail held on the booking (D33). Built on FastMCP 4 and called from the graph with the `mcp` client (D61); it accepts v2 tokens and serves the protected resource metadata document, and the project connection with an audience is the path tested first (D60).
 3. **One tenant** created by an IaC module that takes tenant_id as a parameter (so Phase 2 is a second invocation, not a rewrite), with script steps for what Bicep cannot create (D54): own Foundry project (D24), index, storage partition, gateway product and token budget. An admin script runs the module and writes an audit record (D25).
 4. **Gateway**: a daily token quota (D39) and token metrics keyed by tenant and agent, on API Management Basic v2 in UK West (D22). A Phase 0 spike builds a standalone instance and desk-checks Foundry's AI Gateway (D23, D47).
 5. **Tenant-ready code**: tenant_id resolved from the authenticated agent identity, never from model output; unit tests prove a tool call cannot override it, and a local two-tenant test proves one tenant's identity cannot reach another's data (D49). Cross-tenant isolation tests against real infrastructure arrive in Phase 2.
-6. **Telemetry**: OpenTelemetry instrumented once, exported to Application Insights and Foundry tracing, carrying the attribution keys (D54). The same traces can also be exported over OTLP to Langfuse Cloud (free tier, EU region), with synthetic data only (D7). The export is off by default and outside the exit criteria (D32).
-7. **Eval gate**: offline evals (quality, task success, safety, latency and cost per conversation) block promotion on regression. One judged harness gates promotion, with scripted tests for the write intents (D35, D44).
-8. **Release**: GitHub Actions with OIDC. The pipeline deploys a candidate agent version to dev automatically; promotion to the served version waits for GitHub Environment approval (D19). Each promotion is published as a GitHub Release (D43). After a full rebuild only the approved image is restored (D38).
+6. **Telemetry**: OpenTelemetry instrumented once, exported to Application Insights and Foundry tracing, carrying the attribution keys (D54, D59). The same traces can also be exported over OTLP to Langfuse Cloud (free tier, EU region), with synthetic data only (D7). The export is off by default and outside the exit criteria (D32).
+7. **Eval gate**: offline evals (quality, task success, safety, latency and cost per conversation) block promotion on regression. One judged harness gates promotion, with scripted tests for the write intents (D35, D44). The ai-agent-evals Action stays the documented evaluator set, and the gate step may read the result through the project evaluation API, which also replaces DeepEval as the fallback (D56). The eval set has 50 rows for each judged intent, thresholds come from five baseline runs, and the dataset hash is in the release record (D57). The write intents are also judged on their traces (D58). The owner signs the golden conversations and every row's expected outcome (D67).
+8. **Release**: GitHub Actions with OIDC. The pipeline deploys a candidate agent version to dev automatically; promotion to the served version waits for GitHub Environment approval (D19). Each promotion is published as a GitHub Release (D43). After a full rebuild only the approved image is restored (D38). The candidate's image digest is attested at build and verified before promotion (D62).
 9. **Dashboard v0**: Azure Workbook showing cost, tokens, latency percentiles and eval results by tenant and agent.
 10. **Runtime guardrail**: prompt-injection screening on the agent's model path, with a negative test (D31) and a poisoned-passage test (D46).
 
@@ -112,14 +113,14 @@ Follows Anthropic's AI-Native SDLC playbook: each stage commits one artifact the
 | Design | spec-phase-N.md (D8) | Council review plus owner acceptance |
 | Build | implementation-plan-phase-N.md (D8), code, tests | Plan accepted before code; CI green |
 | Test | eval results | Eval gate thresholds |
-| Deploy | PR with review findings | REVIEW.md passes, human approval |
+| Deploy | PR with review findings | REVIEW.md passes at the system level (D69), human approval |
 | Maintain | new intent.md from breached control bands | Triage by owner |
 
-**Council**: at every gate, six reviewer subagents review the artifact independently and give one anonymised rebuttal, then a chair synthesises a verdict with dissent recorded in docs/council/. Members: Platform Architect, Security and Compliance, AI Engineer (added by D15), Simplifier, Hiring Manager, Contrarian. Pattern reused from Karpathy's LLM Council as adapted for Claude Code subagents (see section 12).
+**Council**: at every gate, six reviewer subagents review the artifact independently and give one anonymised rebuttal, then a chair synthesises a verdict with dissent recorded in docs/council/. Members: Platform Architect, Security and Compliance, AI Engineer (added by D15), Simplifier, Hiring Manager, Contrarian. Pattern reused from Karpathy's LLM Council as adapted for Claude Code subagents (see section 12). The council runs on new artifacts and at phase gates; a revised artifact gets one deep single-reviewer pass with a currency audit instead of a council rerun (D70).
 
 **Tooling**: Claude Code on the web for intent to PR; Claude Code Desktop for one-time Azure bootstrap and live debugging; GitHub Actions is the standard release path. Sessions may also run Azure write commands under the assessment rule in D9, as amended by D13, D14, D20, D21 and D40. A session never approves a deployment (D41).
 
-**Before Build can start (Phase 0 deliverables)**: CLAUDE.md, REVIEW.md, skills (tenant isolation, MCP security, telemetry attribution, IaC conventions), hooks (block test edits during fixes, block secrets; the Azure write assessment hook was removed by D20), council and verifier subagents, .mcp.json (Azure MCP, Microsoft Learn MCP, Context7; Playwright deferred to Phase 4, D10), cloud environment setup script, seed eval set, ADR folder.
+**Before Build can start (Phase 0 deliverables)**: CLAUDE.md, REVIEW.md with passes at the system level (D69), skills (tenant isolation, MCP security, telemetry attribution, IaC conventions, and the Microsoft Foundry Skill, D65), hooks (block test edits during fixes, block secrets; the Azure write assessment hook was removed by D20), council and verifier subagents, .mcp.json (Azure MCP at its generally available line, D64; Microsoft Learn MCP; Context7; Playwright deferred to Phase 4, D10), mutation testing and architecture contracts in CI (D68, D69), cloud environment setup script, seed eval set with outcomes signed by the owner (D67), ADR folder.
 
 **Delivered in Stage 0 (harness session, 2026-10-03)**: git repository and .gitignore, CLAUDE.md (process rules only), council subagents and the /council command, .mcp.json, the session journal in docs/journal/ and the /cleanup skill (D17). The remaining Phase 0 deliverables are specified in docs/spec-phase-0-1.md.
 
@@ -135,35 +136,39 @@ Full report: docs/research.md.
 |---|---|---|
 | LangGraph on Foundry hosted agents | microsoft-foundry/foundry-samples; langchain-ai/langchain-azure hosting samples | Copy hosting pattern and HITL sample |
 | AI gateway policies | Azure-Samples/AI-Gateway | Copy Bicep and policy XML |
-| MCP on Container Apps with auth | Azure-Samples/python-mcp-demos | Fork as salon-mcp base |
-| Eval gate | microsoft/ai-agent-evals; DeepEval | Use Action pinned by SHA; DeepEval only as the fallback gate (D35) |
+| MCP on Container Apps | Azure-Samples/python-mcp-demos | Reuse the azd and Container Apps layout; its Entra sample is a user sign-in proxy, not agent identity, and it pins FastMCP 3 (D61) |
+| MCP client in the graph | The `mcp` Python client | Direct calls from the graph's nodes; no LangChain adapter (D61) |
+| Eval gate | microsoft/ai-agent-evals; the Foundry project evaluation API | The Action's evaluators and dataset format, pinned by SHA; the project API for machine-readable results and as the fallback (D56) |
+| Foundry workflows in Claude Code | Microsoft Foundry Skill, in the Azure plugin | Install beside the project skills (D65) |
 | Factory structure | GoogleCloudPlatform/agent-starter-pack; Backstage templates | Copy structure and approval ideas, not code |
 | Council | karpathy/llm-council; llm-council Claude Code skill | Adapt as subagents and a /council command |
 | Spec and plan templates | Anthropic playbook; GitHub Spec Kit | Playbook artifact chain; borrow Spec Kit's clarifications section |
 | Langfuse export (Phase 1, D7) | Langfuse Cloud free tier, OTLP endpoint | Second OTLP exporter, dev only |
 | Langfuse self-hosted (Phase 6) | Langfuse Docker Compose | Single VM |
 
-**Avoid**: Azure-Samples/langfuse-on-azure (archived, Langfuse v2); the older from_langgraph adapter.
+**Avoid**: Azure-Samples/langfuse-on-azure (archived, Langfuse v2); the older from_langgraph adapter; langchain-mcp-adapters, which has moved into langchain[mcp] (D61).
 
-**Key technical decisions so far**: langchain_azure_ai.agents.hosting; RAG behind MCP; tenant_id from caller identity only; APIM v2 tier for llm-token-limit; agent graph kept independent of the hosting adapter so it can also run on Container Apps if Foundry hosting changes.
+**Key technical decisions so far**: langchain_azure_ai.agents.hosting; RAG behind MCP; tenant_id from caller identity only; APIM v2 tier for llm-token-limit; agent graph kept independent of the hosting adapter so it can also run on Container Apps if Foundry hosting changes; attribution keys on the OpenTelemetry GenAI names (D59).
 
 ## 12. Preview components and GA path
 
 | Component | Status | Fallback |
 |---|---|---|
-| ai-agent-evals Action | v3-beta | Pin SHA; DeepEval-only gate |
+| ai-agent-evals Action | v3-beta | Pin SHA; the project evaluation API (D56) |
 | AI Search knowledge base MCP endpoint | Preview API | Own MCP server on GA search API |
-| APIM fronting MCP servers on v2 | Preview | Direct Entra-authenticated MCP calls |
+| API Management fronting MCP servers on v2 | No preview label on the feature pages; the management API is a preview version (review 04) | Direct Entra-authenticated MCP calls |
+| Foundry durable state store, behind FoundryCheckpointSaver (review 04) | Preview | CosmosDBSaver on Cosmos DB serverless (D26) |
 | Hosted agent private networking | Endpoint stays public | Entra auth; documented gap |
 | Foundry AI Gateway integration (D23, D47) | Preview; desk check only unless the standalone path fails | Standalone API Management instance |
-| Azure MCP server, @azure/mcp (council review 02, debate 7) | 3.0.0-beta.49 | Pinned version; az and azd |
-| Hosting SDK: langchain-azure-ai hosting extra and the azd azure.ai.agents extension (council review 02, debate 7) | Extension is beta | Pinned versions; thin adapter so the graph can run on Container Apps |
+| Azure MCP server, @azure/mcp | 2.0.5, generally available (D64) | az and azd |
+| Hosting SDK: langchain-azure-ai hosting extra, its protocol libraries and the azd azure.ai.agents extension | Protocol libraries and extension are beta (review 04) | Pinned versions; thin adapter so the graph can run on Container Apps |
 
 ## 13. Risks
 - Scope: five subsystems for one engineer; mitigated by strict phase gates and a self-contained MVP
 - Single-tenant MVP hides isolation bugs until Phase 2; mitigated by tenant-ready code, override tests and a local two-tenant test in Phase 1 (D49)
 - Cross-tenant leakage; mitigated by caller-derived tenant_id, override unit tests and a local two-tenant test in Phase 1 (D49), and cross-tenant isolation tests on real infrastructure from Phase 2
 - SDK churn in Foundry hosting; mitigated by a thin adapter
+- Beta and preview parts in the hosting path (the state store, the protocol libraries, the azd extension) and a fast-moving MCP stack; mitigated by the pins in section 7 of the spec and the thin adapter (D61)
 - Cost growth per tenant; nightly gateway teardown (D37), free tiers where possible, £40 a month ceiling for dev (D21)
 - PII in traces and transcripts; masking at the collector, retention and access audit
 - ROI overclaiming; estimates labelled with assumptions
@@ -241,6 +246,24 @@ Question numbers in D37 to D55 refer to docs/council/03-spec-phase-0-1-review.md
 - **D54**: Unopposed corrections from review 03, debate 7. All nine attribution keys are required on spans the agent emits; spans from salon-mcp and the gateway carry the keys they can know and join on the trace id. The tenant module is split into Bicep and script steps, because Bicep cannot create a search index. The bootstrap names the Entra app registrations for the gateway and salon-mcp audiences. Source: https://learn.microsoft.com/azure/search/search-get-started-bicep
 - **D55**: Process. "Research before the interview" becomes a rule in CLAUDE.md, having appeared as a lesson in two journal entries.
 
+### Decided after principal review 04 (2026-10-03)
+Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, requested by the owner after council review 03. The owner took the review's recommendations as a block: the five changes marked must, the changes marked should, and of the changes marked could only D66.
+- **D56**: Eval harness route. Amends D35 and D44 and answers finding F1. The microsoft/ai-agent-evals Action stays the documented evaluator set and dataset format. Its code resolves the exact agent version and targets it through the project evaluation API, writing only to the job summary, so spike S6 runs the Action and a direct call to the same API side by side, and the gate step reads whichever yields a machine-readable result. The project evaluation API replaces DeepEval as the named fallback. Sources: https://raw.githubusercontent.com/microsoft/ai-agent-evals/main/action.py and https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-targets
+- **D57**: Dataset and thresholds. Amends D44 and answers finding F1. The eval set has 50 rows for each judged intent and 10 unanswerable questions. Spike S6 runs the sound version five times; each threshold is the mean minus two run-to-run standard deviations; the spec states the smallest regression the gate detects. The dataset's hash is written into the release record, so two runs are compared only on the same rows.
+- **D58**: Write intents judged on traces. Amends D44 and answers finding F1. The scripted write conversations' traces are judged with the task completion and tool evaluators, in addition to the end-state assertions, if spike S6 shows a trace evaluation runs from a UK South project. Source: https://learn.microsoft.com/azure/foundry/mcp/available-tools
+- **D59**: Attribution key names. Amends D54 and section 5 and answers finding F5. Five keys take the OpenTelemetry GenAI names, `gen_ai.agent.id`, `gen_ai.agent.version`, `gen_ai.conversation.id`, `gen_ai.tool.name` and `gen_ai.request.model`, because the Azure tracer forwards them and Foundry's and Azure Monitor's agent views key on them. `tenant_id`, `environment`, `turn_id` and `graph_node` stay custom under one prefix. Nine keys on every agent span stands. Sources: https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-traces and https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-agent-spans.md
+- **D60**: Identity path order. Amends D52 and answers finding F3. Spike S2 tests the project connection with agentic-identity authentication and salon-mcp's audience first, because that is the documented path; the direct call from the graph is what S2 proves. salon-mcp accepts v2 tokens and serves the protected resource metadata document referenced from its 401 responses. Entra Agent ID is generally available. Sources: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/mcp-authentication, https://learn.microsoft.com/en-us/entra/agent-id/secure-mcp-server-with-entra-id and https://learn.microsoft.com/en-us/entra/agent-id/whats-new-agent-id
+- **D61**: MCP stack. Settles the open question in section 12 of the spec and answers finding F2. The graph's nodes call salon-mcp with the `mcp` Python client, 2.x line, with no LangChain adapter; salon-mcp is built on FastMCP 4; Azure-Samples/python-mcp-demos is reused for its azd and Container Apps layout only. The exact pins are in section 7 of the spec. Sources: https://modelcontextprotocol.io/specification/2026-07-28/changelog and https://raw.githubusercontent.com/Azure-Samples/python-mcp-demos/main/uv.lock
+- **D62**: Build provenance. Amends D42 and D43 and answers finding F6. The candidate job attests the image digest with `actions/attest`; the promote job verifies the attestation before moving the selector; the repository setting that requires actions pinned to a full commit SHA replaces the lint check; immutable releases are cited as generally available and checked with `gh release verify`. Sources: https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations and https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases
+- **D63**: Safety and red teaming region. Amends D53 and D46 and answers finding F9. Risk and safety evaluators and the AI Red Teaming Agent are not offered in UK South, so the spike S6 safety test is dropped. A second Foundry project in an EU region for safety evaluators and red teaming, with synthetic data only (D29), is decided in Phase 2. Source: https://learn.microsoft.com/azure/foundry/concepts/evaluation-regions-limits-virtual-network
+- **D64**: Azure MCP server. Amends D10 and answers finding F11. .mcp.json pins @azure/mcp 2.0.5, the generally available line, unless a 3.0 feature is named. Source: https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/README.md
+- **D65**: Foundry Skill. Amends D36 and answers finding F11. The Microsoft Foundry Skill joins the harness beside the four project skills, which keep what Microsoft's skill cannot know: the tenant boundary and the attribution keys. Source: https://learn.microsoft.com/azure/foundry/how-to/develop/use-microsoft-foundry-skill
+- **D66**: Defender for AI Services. Answers challenge C10. The model resource is enrolled in the Defender for AI Services trial in Phase 1 week 2, to show one detection alert beside the preventive guardrail, and is disabled before the trial ends. The price after the trial is unverified. Source: https://learn.microsoft.com/azure/defender-for-cloud/ai-threat-protection
+- **D67**: Human-authored behaviour. Amends D44 and answers the review's section 14. The owner signs the three golden conversations and the expected outcome of every eval row; the agent drafts. The scripted write tests and the automatable exit rows of the spec's section 9 are feature files in Given, When, Then form. The hash in the release record names the signed version.
+- **D68**: Mutation testing. Amends D36 and answers the review's section 14. Mutation testing and a complexity-and-coverage report run on the control modules only (the validate node, the citation check, idempotency, the registry lookup in salon-mcp, the audit append) as a pull request check. Thresholds are measured first and may be relaxed as the agent proves itself.
+- **D69**: Architecture contracts. Amends D36 and answers the review's section 14. Import contracts encode the partitioning rules; the compiled graph's Mermaid rendering is committed and diffed on every pull request; a generated package diagram is attached to each pull request; a Bicep what-if runs in the checks. REVIEW.md passes are defined at the system level: controls still refuse, contracts hold, mutation score, spec drift, secrets, cost; no line-by-line pass.
+- **D70**: Review process. Amends D15 and D17 and answers the review's section 14. The council runs on new artifacts and at phase gates; a revised artifact gets one deep single-reviewer pass with a currency audit. The Phase 3 Factory fills templates from a validated spec and never chains a specification agent, a coding agent and a review agent. The journal template gains the line "harness mechanism not needed this session". Recorded in CLAUDE.md.
+
 ### Needed before later phases (council's proposed default in brackets)
 5. Tenant provisioning: see D25.
 6. Index per tenant or shared index: see D27.
@@ -283,3 +306,18 @@ Question numbers in D37 to D55 refer to docs/council/03-spec-phase-0-1-review.md
 - Foundry evaluation in GitHub Actions: https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action
 - Foundry evaluation region support: https://learn.microsoft.com/azure/foundry/concepts/evaluation-regions-limits-virtual-network
 - Azure Retail Prices API: https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices
+- Evaluate an agent target through the project API: https://learn.microsoft.com/azure/foundry/observability/how-to/cloud-evaluation-targets
+- ai-agent-evals Action source: https://raw.githubusercontent.com/microsoft/ai-agent-evals/main/action.py
+- Foundry MCP server tools, including trace evaluation and comparison: https://learn.microsoft.com/azure/foundry/mcp/available-tools
+- OpenTelemetry GenAI agent spans: https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-agent-spans.md
+- LangChain tracer for Foundry: https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-traces
+- Foundry MCP tool authentication: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/mcp-authentication
+- Secure an MCP server with Entra: https://learn.microsoft.com/en-us/entra/agent-id/secure-mcp-server-with-entra-id
+- Entra Agent ID general availability: https://learn.microsoft.com/en-us/entra/agent-id/whats-new-agent-id
+- MCP specification 2026-07-28 changelog: https://modelcontextprotocol.io/specification/2026-07-28/changelog
+- GitHub artifact attestations: https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/use-artifact-attestations
+- GitHub immutable releases (current page): https://docs.github.com/en/code-security/concepts/supply-chain-security/immutable-releases
+- Microsoft Foundry Skill for coding agents: https://learn.microsoft.com/azure/foundry/how-to/develop/use-microsoft-foundry-skill
+- Azure MCP Server 2.0: https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/README.md
+- Defender for Cloud threat protection for AI: https://learn.microsoft.com/azure/defender-for-cloud/ai-threat-protection
+- Foundry durable state store: https://learn.microsoft.com/azure/foundry/agents/concepts/agent-state-store
