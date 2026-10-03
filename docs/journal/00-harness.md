@@ -1,7 +1,8 @@
 # Session 00: Stage 0, delivery harness
 
 Date: 2026-10-03. Tool: Claude Code Desktop (Windows). Model: Claude Opus 5.5.
-Commits: eb59d95 (harness and intent revision 7), plus the commit that adds this entry and council review 02.
+Commits: eb59d95 (harness and intent revision 7), 76be8a0 (council review 02 and this journal), 238ceec and one
+later commit (journal corrections). Remote: https://github.com/ranaidrees/MultiTenantAgentFactory (private).
 
 ## 1. Opening prompt
 
@@ -101,8 +102,8 @@ to an interviewer and turned into a template. That request created this journal.
   intent self-contradictory.
 - **Three GitHub accounts.** gh was logged in as two accounts, neither the one wanted. A browser
   sign-in does not log the CLI in. The fix is the gh device login (`gh auth login --web`), which
-  the owner completes in the browser with a one-time code. The first code expired unused, so the
-  session ended with two local commits and no remote.
+  the owner completes in the browser with a one-time code. The first code expired unused; the
+  second succeeded, and the private repository was created and pushed.
 - **The existing user-level Azure MCP server was broken.** Two stale `azmcp.exe` processes locked
   the npx cache, so `@latest` could not upgrade (EBUSY). Pinning an exact version in `.mcp.json`
   avoided it and is better supply-chain practice anyway.
@@ -150,8 +151,8 @@ to an interviewer and turned into a template. That request created this journal.
 ## 7. Next session
 
 Owner, before the next session:
-- Log the gh CLI in as `ranaidrees` (`gh auth login --hostname github.com --git-protocol https
-  --web --scopes workflow`) so the private repository can be created and the commits pushed.
+- This repository pushes through the active gh account. If a push is refused, run
+  `gh auth switch --user ranaidrees`.
 - Answer the twelve owner questions in [02-intent-review.md](../council/02-intent-review.md).
   Questions 1 to 3 ask you to reconsider D9, D10 and D12; the Contrarian's verdict becomes Reject
   if D9 and D12 stay as written.
