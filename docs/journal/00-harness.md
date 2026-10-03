@@ -101,13 +101,15 @@ to an interviewer and turned into a template. That request created this journal.
   intent self-contradictory.
 - **Three GitHub accounts.** gh was logged in as two accounts, neither the one wanted. A browser
   sign-in does not log the CLI in. The fix is the gh device login (`gh auth login --web`), which
-  the owner completes in the browser with a one-time code.
+  the owner completes in the browser with a one-time code. The first code expired unused, so the
+  session ended with two local commits and no remote.
 - **The existing user-level Azure MCP server was broken.** Two stale `azmcp.exe` processes locked
   the npx cache, so `@latest` could not upgrade (EBUSY). Pinning an exact version in `.mcp.json`
   avoided it and is better supply-chain practice anyway.
-- **New agents and commands do not register mid-session.** Claude Code loads `.claude/agents/` at
-  session start. The smoke test ran each member as a general-purpose subagent told to read its own
-  definition file. Prompts and protocol were tested; tool limits were not.
+- **New agents were not registered when first needed.** Two attempts to start `council-*` agents
+  failed, so the smoke test ran each member as a general-purpose subagent told to read its own
+  definition file. Prompts and protocol were tested; tool limits were not. The agent types did
+  register later in the same session, with the intended tool lists, so the definitions are valid.
 - **Passing reviews inline was wasteful.** The orchestrator would retype every review five times.
   Reviews now travel as files in a temporary folder; `/council` was updated.
 - **The council costs real budget.** One run used about 1.6 million subagent tokens and about 25
@@ -136,7 +138,8 @@ to an interviewer and turned into a template. That request created this journal.
 - Offer a recommendation with every question, and record the answer even when it goes against it.
 - Check accounts and identities (git author, gh login, cloud subscription) in the first minutes.
 - Pin tool versions in `.mcp.json`. `@latest` broke an existing setup on this machine.
-- Create agents and commands in one session and use them in the next. They load at session start.
+- Create agents and commands early. They can take a while to register in the session that creates
+  them, so plan to use them properly in the next one.
 - Commit the artifact before reviewing it, so the review can cite a commit.
 - Run the council before decisions harden. Here it found two facts that change the plan: GitHub
   required reviewers are not available on private repositories on Free, Pro and Team plans, and
@@ -147,6 +150,8 @@ to an interviewer and turned into a template. That request created this journal.
 ## 7. Next session
 
 Owner, before the next session:
+- Log the gh CLI in as `ranaidrees` (`gh auth login --hostname github.com --git-protocol https
+  --web --scopes workflow`) so the private repository can be created and the commits pushed.
 - Answer the twelve owner questions in [02-intent-review.md](../council/02-intent-review.md).
   Questions 1 to 3 ask you to reconsider D9, D10 and D12; the Contrarian's verdict becomes Reject
   if D9 and D12 stay as written.

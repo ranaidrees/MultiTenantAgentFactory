@@ -28,9 +28,9 @@ opinion on it. Follow the steps in order.
 7. Working folder: a temporary folder outside the repository (the session scratchpad if there is
    one, otherwise the system temp directory). Reviews and rebuttals are passed between steps as
    files there, so briefs stay short and nothing is retyped. It is not committed.
-8. If the `council-*` agent types are not found, stop and tell the owner to start a new session:
-   Claude Code loads `.claude/agents/` at session start. Do not substitute other agent types,
-   because they do not carry the members' tool limits.
+8. If the `council-*` agent types are not found, stop and tell the owner. Agents created or edited
+   in the current session can take a while to register; a new session always picks them up. Do not
+   substitute other agent types, because they do not carry the members' tool limits.
 
 ## 2. Round one: independent reviews
 
