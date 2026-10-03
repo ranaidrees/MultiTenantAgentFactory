@@ -1,12 +1,13 @@
 # Intent: Multi-tenant AgentOps platform on Azure with Agent Factory
 
-Author: Rana Naveed Idrees. Status: accepted (revision 10). Owner decisions D1 to D18 recorded in section 14. Date: 2026-10-03.
+Author: Rana Naveed Idrees. Status: accepted (revision 11). Owner decisions D1 to D36 recorded in section 14. Date: 2026-10-03.
 Stage: 1 of 6 (Plan). Location: docs/intent.md. Next artifact: docs/spec-phase-0-1.md (Phases 0 and 1).
 Council record: docs/council/01-intent-review.md (revision 4) and docs/council/02-intent-review.md (revision 7)
 Revision 7 records the Stage 0 harness interview (D7 to D12) and amends the text those decisions contradict; each amendment is marked with its decision number.
 Revision 8 records the owner's response to council review 02 (D13 to D17). The review's other questions remain open for the spec.
 Revision 9 applies three cleanup corrections approved by the owner: the isolation test phases in section 13, question 4 removed (answered by D6) and question 8 pointed at D11.
 Revision 10 records D18 (the repository is to be made public).
+Revision 11 records the Stage 2 design interview (D19 to D36), amends the text those decisions contradict, and applies two unopposed corrections from council review 02, debate 7. Each amendment is marked with its decision number or source.
 
 ## 1. Problem
 
@@ -25,7 +26,7 @@ Each phase is usable and demonstrable on its own. Later phases build on earlier 
 | Phase | Name | What exists at the end | Interview story it unlocks |
 |---|---|---|---|
 | 0 | Foundations | Repo, CLAUDE.md, REVIEW.md, skills, hooks, council agents, IaC skeleton, CI with OIDC, spikes resolved | "This is how I set up AI-native delivery with guardrails" |
-| 1 | **MVP: governed agent, one tenant, tenant-ready** | Salon agent and salon-mcp (with RAG) for one tenant; tenant identity bound to the agent and enforced server-side; APIM token budget; OpenTelemetry with full attribution keys, also exported to Langfuse Cloud in dev (D7); offline eval gate; dev to prod with approval; Workbook dashboard | "Governance, cost and quality are enforced by the platform, not the agent" |
+| 1 | **MVP: governed agent, one tenant, tenant-ready** | Salon agent and salon-mcp (with RAG) for one tenant; tenant identity bound to the agent and enforced server-side; gateway token budget (D22, D23); OpenTelemetry with full attribution keys, with an optional export to Langfuse Cloud (D7, D32); offline eval gate; candidate promoted to served with approval, in dev (D19); Workbook dashboard | "Governance, cost and quality are enforced by the platform, not the agent" |
 | 2 | Multi-tenant | Second tenant via the same IaC; automated isolation tests in CI; per-tenant views on the dashboard | "Isolation is proven by tests, not claimed" |
 | 3 | Agent Factory | Spec schema, templates (agent, MCP server, RAG knowledge base), generator that opens a PR, CI policy checks; **regulated document Q&A agent** shipped through the same gate | "New agents inherit the golden path; humans approve, pipelines deploy" |
 | 4 | Admin Console | FastAPI and React on Azure: provision tenants, request agents, request deployments, lifecycle dashboard | "One control plane for tenants and agents" |
@@ -33,6 +34,8 @@ Each phase is usable and demonstrable on its own. Later phases build on earlier 
 | 6 | Depth | Ledger and statements, SLOs and error budgets, online evals and drift, self-hosted Langfuse (D7), knowledge self-service, siloed isolation | "Chargeback, reliability engineering, continuous quality" |
 
 Rule: a phase starts only when the previous phase passes its exit criteria and the council gate.
+
+Stop line (D30): the project counts as complete at the end of Phase 3. Phases 4 to 6 remain as an optional backlog.
 
 ## 4. Users
 
@@ -55,21 +58,22 @@ Rule: a phase starts only when the previous phase passes its exit criteria and t
 | RAG knowledge base | A tenant's indexed documents, exposed to agents as an MCP tool |
 | Template | Approved, versioned pattern the Factory fills in |
 | Agent spec | One-page, schema-validated request for a new agent, MCP server or knowledge base |
-| Attribution keys | tenant_id, agent_id, agent_version, environment, conversation_id, turn_id, graph_node, tool_name, model_deployment; present on every span and gateway call |
+| Attribution keys | tenant_id, agent_id, agent_version, environment, conversation_id, turn_id, graph_node, tool_name, model_deployment; present on every span. Gateway metrics carry at most five of them, because the gateway metric policy allows five custom dimensions; the rest are span-only (council review 02, debate 7) |
 
 ## 6. Phase 1 MVP in detail (highest impact first)
 
-1. **Salon agent** (LangGraph): intents book, reschedule, cancel, FAQ, out of scope; FAQ answered from the tenant's knowledge with citations; booking rules validated in code; confirmation interrupt before any write.
-2. **salon-mcp** on Container Apps: search_faq, get_availability, create_booking, cancel_booking; tenant_id taken from the authenticated caller; idempotent writes; append-only audit log.
-3. **One tenant** created by an IaC module that takes tenant_id as a parameter (so Phase 2 is a second invocation, not a rewrite): own index, storage partition, APIM product and token budget.
-4. **Gateway**: APIM token limit and token metrics keyed by tenant and agent.
+1. **Salon agent** (LangGraph): intents book, cancel, FAQ, out of scope (reschedule dropped by D31; cancel then book covers it); FAQ answered from the tenant's knowledge with citations; booking rules validated in code; confirmation interrupt before any write.
+2. **salon-mcp** on Container Apps: search_faq, get_availability, create_booking, cancel_booking; tenant_id taken from the authenticated caller; idempotent writes; append-only audit log; a cancellation needs the booking reference and the contact detail held on the booking (D33).
+3. **One tenant** created by an IaC module that takes tenant_id as a parameter (so Phase 2 is a second invocation, not a rewrite): own Foundry project (D24), index, storage partition, gateway product and token budget. An admin script runs the module and writes an audit record (D25).
+4. **Gateway**: token limit and token metrics keyed by tenant and agent, on API Management Basic v2 in UK West (D22). A Phase 0 spike decides between a standalone instance and Foundry's AI Gateway (D23).
 5. **Tenant-ready code**: tenant_id resolved from the authenticated agent identity, never from model output; unit tests prove a tool call cannot override it. Cross-tenant isolation tests arrive in Phase 2.
-6. **Telemetry**: OpenTelemetry instrumented once, exported to Application Insights and Foundry tracing, carrying all attribution keys. In dev only, the same traces are also exported over OTLP to Langfuse Cloud (free tier, EU region), with synthetic data only (D7).
-7. **Eval gate**: offline evals (quality, task success, safety, latency and cost per conversation) block promotion on regression.
-8. **Release**: GitHub Actions with OIDC; dev automatic, prod via GitHub Environment approval.
+6. **Telemetry**: OpenTelemetry instrumented once, exported to Application Insights and Foundry tracing, carrying all attribution keys. The same traces can also be exported over OTLP to Langfuse Cloud (free tier, EU region), with synthetic data only (D7). The export is off by default and outside the exit criteria (D32).
+7. **Eval gate**: offline evals (quality, task success, safety, latency and cost per conversation) block promotion on regression. One harness gates promotion (D35).
+8. **Release**: GitHub Actions with OIDC. The pipeline deploys a candidate agent version to dev automatically; promotion to the served version waits for GitHub Environment approval (D19).
 9. **Dashboard v0**: Azure Workbook showing cost, tokens, latency percentiles and eval results by tenant and agent.
+10. **Runtime guardrail**: prompt-injection screening on the agent's model path, with a negative test (D31).
 
-Phase 1 exit criteria: a stranger can clone the repo, run one setup command plus one pipeline, and see one tenant's agent served, metered, evaluated and observable, with every release traceable to an approved PR.
+Phase 1 exit criteria: a stranger can clone the repo, run one setup command plus one pipeline, and see one tenant's agent served, metered, evaluated and observable, with every release traceable to an approved PR. Each control is shown working by a negative demonstration, not only shown to exist (D31). Tenant provisioning traces to its audit record, not to a PR (D25).
 
 ## 7. Later phases (summary, detail moves to spec.md when each phase starts)
 
@@ -87,12 +91,13 @@ Phase 1 exit criteria: a stranger can clone the repo, run one setup command plus
 - Free-form code generation by the Factory
 - Production-grade HA
 - Payment collection
+- A live (prod) environment in Phases 0 and 1 (D19)
 
 Removed in revision 7 by D9: "Anyone, including the admin, deploying to prod outside CI and approval".
 
 ## 9. Constraints
-- Solo engineer; Phase 0 about 1 week, MVP about 2 weeks; full roadmap about 10 weeks
-- Personal Azure subscription, UK South preferred, tear down when idle
+- Solo engineer; Phase 0 two weeks, Phase 1 three weeks, stop line at the end of Phase 3 (D30, replacing about 1 week, about 2 weeks and about 10 weeks for the full roadmap)
+- Personal Azure subscription, UK South preferred, gateway in UK West (D22); tear down when idle (D28); ceiling of £40 a month for the dev environment (D21)
 - Preview features allowed if pinned, isolated behind one module and listed with a GA path
 - Every design claim traceable to a source; reuse before build
 
@@ -111,9 +116,9 @@ Follows Anthropic's AI-Native SDLC playbook: each stage commits one artifact the
 
 **Council**: at every gate, six reviewer subagents review the artifact independently and give one anonymised rebuttal, then a chair synthesises a verdict with dissent recorded in docs/council/. Members: Platform Architect, Security and Compliance, AI Engineer (added by D15), Simplifier, Hiring Manager, Contrarian. Pattern reused from Karpathy's LLM Council as adapted for Claude Code subagents (see section 12).
 
-**Tooling**: Claude Code on the web for intent to PR; Claude Code Desktop for one-time Azure bootstrap and live debugging; GitHub Actions is the standard release path. Sessions may also run Azure write commands under the assessment rule in D9, as amended by D13 and D14.
+**Tooling**: Claude Code on the web for intent to PR; Claude Code Desktop for one-time Azure bootstrap and live debugging; GitHub Actions is the standard release path. Sessions may also run Azure write commands under the assessment rule in D9, as amended by D13, D14, D20 and D21.
 
-**Before Build can start (Phase 0 deliverables)**: CLAUDE.md, REVIEW.md, skills (tenant isolation, MCP security, telemetry attribution, IaC conventions), hooks (Azure write assessment per D9, block test edits during fixes, block secrets), council and verifier subagents, .mcp.json (Azure MCP, Microsoft Learn MCP, Context7; Playwright deferred to Phase 4, D10), cloud environment setup script, seed eval set, ADR folder.
+**Before Build can start (Phase 0 deliverables)**: CLAUDE.md, REVIEW.md, skills (tenant isolation, MCP security, telemetry attribution, IaC conventions), hooks (block test edits during fixes, block secrets; the Azure write assessment hook was removed by D20), council and verifier subagents, .mcp.json (Azure MCP, Microsoft Learn MCP, Context7; Playwright deferred to Phase 4, D10), cloud environment setup script, seed eval set, ADR folder.
 
 **Delivered in Stage 0 (harness session, 2026-10-03)**: git repository and .gitignore, CLAUDE.md (process rules only), council subagents and the /council command, .mcp.json, the session journal in docs/journal/ and the /cleanup skill (D17). The remaining Phase 0 deliverables are specified in docs/spec-phase-0-1.md.
 
@@ -130,7 +135,7 @@ Full report: docs/research.md.
 | LangGraph on Foundry hosted agents | microsoft-foundry/foundry-samples; langchain-ai/langchain-azure hosting samples | Copy hosting pattern and HITL sample |
 | AI gateway policies | Azure-Samples/AI-Gateway | Copy Bicep and policy XML |
 | MCP on Container Apps with auth | Azure-Samples/python-mcp-demos | Fork as salon-mcp base |
-| Eval gate | microsoft/ai-agent-evals; DeepEval | Use Action pinned by SHA; DeepEval for graph tests |
+| Eval gate | microsoft/ai-agent-evals; DeepEval | Use Action pinned by SHA; DeepEval only as the fallback gate (D35) |
 | Factory structure | GoogleCloudPlatform/agent-starter-pack; Backstage templates | Copy structure and approval ideas, not code |
 | Council | karpathy/llm-council; llm-council Claude Code skill | Adapt as subagents and a /council command |
 | Spec and plan templates | Anthropic playbook; GitHub Spec Kit | Playbook artifact chain; borrow Spec Kit's clarifications section |
@@ -149,16 +154,20 @@ Full report: docs/research.md.
 | AI Search knowledge base MCP endpoint | Preview API | Own MCP server on GA search API |
 | APIM fronting MCP servers on v2 | Preview | Direct Entra-authenticated MCP calls |
 | Hosted agent private networking | Endpoint stays public | Entra auth; documented gap |
+| Foundry AI Gateway integration (D23) | Preview | Standalone API Management instance |
+| Azure MCP server, @azure/mcp (council review 02, debate 7) | 3.0.0-beta.49 | Pinned version; az and azd |
+| Hosting SDK: langchain-azure-ai hosting extra and the azd azure.ai.agents extension (council review 02, debate 7) | Extension is beta | Pinned versions; thin adapter so the graph can run on Container Apps |
 
 ## 13. Risks
 - Scope: five subsystems for one engineer; mitigated by strict phase gates and a self-contained MVP
 - Single-tenant MVP hides isolation bugs until Phase 2; mitigated by tenant-ready code and override tests in Phase 1
 - Cross-tenant leakage; mitigated by caller-derived tenant_id, override unit tests in Phase 1 and cross-tenant isolation tests from Phase 2
 - SDK churn in Foundry hosting; mitigated by a thin adapter
-- Cost growth per tenant; nightly teardown, free tiers where possible
+- Cost growth per tenant; nightly teardown, free tiers where possible, £40 a month ceiling for dev (D21)
 - PII in traces and transcripts; masking at the collector, retention and access audit
 - ROI overclaiming; estimates labelled with assumptions
-- UK South availability of hosted agents and models to confirm in the portal
+- Regional availability: hosted agents are listed for UK South; current models are offered there as Global Standard only (D34); API Management v2 tiers cannot currently be created in UK South, so the gateway is in UK West (D22). Checked in the documentation on 2026-10-03, still to confirm in the portal
+- No enforced control between a session and a live environment (D20): accepted by the owner, and dormant while dev is the only environment (D19)
 
 ## 14. Questions for the owner
 
@@ -166,17 +175,17 @@ Full report: docs/research.md.
 - **D1**: MVP serves one tenant first, built tenant-ready; multi-tenancy becomes Phase 2. (Council dissent recorded: docs/council/01-intent-review.md)
 - **D2**: Factory's second agent is regulated document Q&A.
 - **D3**: Admin Console and Tenant Portal use Python FastAPI and React.
-- **D4**: Models are Azure OpenAI only: a small model for classification and extraction, a mid model for answers. Exact versions fixed after confirming UK South availability.
+- **D4**: Models are Azure OpenAI only: a small model for classification and extraction, a mid model for answers. Exact versions fixed after confirming UK South availability. (Completed by D34.)
 - **D5**: Google Calendar sync deferred beyond Phase 1.
-- **D6**: Claude plan is Pro or Max. Cloud sessions may hold a dev model key as an environment API credential (never visible to Claude). Production credentials exist only in GitHub Actions via OIDC.
-- **Defaults for Phase 1 unless the owner objects**: synthetic salon data; named stylists with an "any available" option; dev and prod environments only; eval thresholds proposed in spec and retuned after baseline.
+- **D6**: Claude plan is Pro or Max. Cloud sessions may hold a dev model key as an environment API credential (never visible to Claude). Production credentials exist only in GitHub Actions via OIDC. (Amended by D20.)
+- **Defaults for Phase 1 unless the owner objects**: synthetic salon data; named stylists with an "any available" option; dev environment only (D19, replacing "dev and prod environments only"); eval thresholds proposed in spec and retuned after baseline.
 
 ### Decided in the Stage 0 harness interview (2026-10-03)
-- **D7**: Langfuse moves into Phase 1 as an export only. Langfuse Cloud free tier (EU region; 50k units a month, 30 days of data, 2 users) is added as a second OTLP exporter in the dev environment, with synthetic data only and no new Azure infrastructure. Self-hosting and question 15 stay in Phase 6. This revises debate 3 in docs/council/01-intent-review.md. Sources: https://langfuse.com/pricing and https://langfuse.com/integrations/native/opentelemetry
+- **D7**: Langfuse moves into Phase 1 as an export only. Langfuse Cloud free tier (EU region; 50k units a month, 30 days of data, 2 users) is added as a second OTLP exporter in the dev environment, with synthetic data only and no new Azure infrastructure. Self-hosting and question 15 stay in Phase 6. This revises debate 3 in docs/council/01-intent-review.md. Sources: https://langfuse.com/pricing and https://langfuse.com/integrations/native/opentelemetry (Amended by D32.)
 - **D8**: Artifact names and layout. The chain is docs/intent.md, then docs/spec-phase-N.md, then docs/implementation-plan-phase-N.md, then code, then PR. Files are kept per phase rather than overwritten. Phases 0 and 1 share docs/spec-phase-0-1.md and docs/implementation-plan-phase-0-1.md. "implementation-plan" replaces the playbook's "plan.md".
-- **D9**: Claude Code sessions may run Azure write commands in any environment, including prod, through az, azd or the Azure MCP server. Before each write Claude states the estimated added monthly cost and the blast radius. It proceeds without asking only when all of these hold: the estimate is up to £20 a month; the command touches only this project's resource groups; it deletes nothing; it makes no role, policy or Entra change outside the bootstrap. Anything else waits for the owner's yes. This removes the non-goal on deploying to prod outside CI and replaces the earlier rule that only GitHub Actions deploys. GitHub Actions with OIDC and environment approval (section 6, item 8) remains the standard release path. No deny rules or blocking hooks for Azure commands were added in Stage 0; how the assessment is enforced mechanically is a question for the Phases 0 and 1 spec. Consequence to weigh in the spec: the "pipelines deploy, humans approve" story now rests on the standard path and the audit trail, not on a hard block.
+- **D9**: Claude Code sessions may run Azure write commands in any environment, including prod, through az, azd or the Azure MCP server. Before each write Claude states the estimated added monthly cost and the blast radius. It proceeds without asking only when all of these hold: the estimate is up to £20 a month; the command touches only this project's resource groups; it deletes nothing; it makes no role, policy or Entra change outside the bootstrap. Anything else waits for the owner's yes. This removes the non-goal on deploying to prod outside CI and replaces the earlier rule that only GitHub Actions deploys. GitHub Actions with OIDC and environment approval (section 6, item 8) remains the standard release path. No deny rules or blocking hooks for Azure commands were added in Stage 0; how the assessment is enforced mechanically is a question for the Phases 0 and 1 spec. Consequence to weigh in the spec: the "pipelines deploy, humans approve" story now rests on the standard path and the audit trail, not on a hard block. (Amended by D13, D20 and D21.)
 - **D10**: .mcp.json holds Microsoft Learn MCP, Context7 (added to the original list) and Azure MCP, pinned to @azure/mcp 3.0.0-beta.49 with write tools enabled under D9. Playwright is deferred to Phase 4.
-- **D11**: Left open for the spec, to be raised in its clarifications section: the bookings and conversation store (Cosmos DB serverless or PostgreSQL), and questions 5, 6 and 7 below. The note in docs/research.md that the store was "later revised to PostgreSQL in spec" refers to a spec that does not exist and has no standing; the note was removed in revision 9.
+- **D11**: Left open for the spec, to be raised in its clarifications section: the bookings and conversation store (Cosmos DB serverless or PostgreSQL), and questions 5, 6 and 7 below. The note in docs/research.md that the store was "later revised to PostgreSQL in spec" refers to a spec that does not exist and has no standing; the note was removed in revision 9. (Settled by D23, D25, D26 and D27.)
 - **D12**: The repository is private under github.com/ranaidrees. Commits are authored as Rana Idrees with the account's GitHub noreply address.
 
 ### Decided after council review 02 (2026-10-03)
@@ -187,11 +196,32 @@ Full report: docs/research.md.
 - **D17**: Two harness additions. Each session writes a journal entry in docs/journal/ from a template, and starts from the handoff in the previous entry. A /cleanup skill reports broken, stale, duplicated, unused or unnecessary files and changes nothing without the owner's approval; it runs before the final commit of each stage. No document is added outside the artifact chain, council reviews, journal and harness configuration unless the owner asks.
 - **D18**: Settles D16 and answers question 3 of review 02. The owner decided to make the repository public, so that environments, required reviewers, protected branches and GitHub's free security scanning are available to the project. The repository and its commit messages were checked first for secrets and personal identifiers and none were found. The owner made the visibility change in GitHub settings on 2026-10-03, because a session is not permitted to publish a repository; the repository is now public. Azure subscription and tenant identifiers are to be kept in GitHub variables or secrets, not in files.
 
+### Decided in the Stage 2 design interview (2026-10-03)
+Question numbers in D19 to D36 refer to docs/council/02-intent-review.md unless they say "below". Prices are from the Azure Retail Prices API on 2026-10-03.
+- **D19**: Environments and release gate. Dev is the only environment in Phases 0 and 1. The owner builds and demonstrates on dev, and a live environment is an optional later decision. The release gate sits inside dev: the pipeline deploys a candidate agent version, runs the eval gate against a session pinned to that candidate, and a GitHub Environment approval guards promotion to the served version. The owner is the single approver, which the spec states plainly, and administrator bypass of the environment rule is disabled. Question 5 does not arise, because there is one gateway instance. Sources: https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-agent#release-a-version-without-changing-production and https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
+- **D20**: Session identity and prod credentials. Amends D6, D13 and D14. Claude Code sessions use the owner's own Azure CLI login throughout. D6 is amended: the owner's login on the Desktop is a second prod credential beside GitHub Actions, and cloud sessions never hold a prod credential. The approval rules in D13 and D14 stay written rules only. The owner chose no hook, no Claude Code permission rule, no separate session identity, no activity log alert and no delete lock, because the priority is that Claude Code works without friction. Azure RBAC least privilege applies to workload and pipeline identities, not to sessions. This is an accepted risk: nothing mechanical stands between a session and a live environment. It is dormant while dev is the only environment (D19). The Azure write assessment hook is removed from the Phase 0 deliverables. Options considered: https://code.claude.com/docs/en/hooks and https://code.claude.com/docs/en/permissions
+- **D21**: Budget. Amends D9 and answers the second part of question 12. The whole dev environment has a ceiling of £40 a month. A dev write runs without asking only if it meets the D9 test and the month's forecast total stays under £40; otherwise the session asks.
+- **D22**: Gateway region and tier. Answers the first half of question 4. Azure API Management Basic v2 in UK West, because no v2 tier can currently be created in UK South. It costs £0.1551 for each hour it exists and cannot be paused, so it is created on demand and deleted and purged when idle, with a nightly teardown workflow as a backstop. Everything else stays in UK South. Sources: https://learn.microsoft.com/en-us/azure/api-management/api-management-region-availability and https://learn.microsoft.com/azure/api-management/soft-delete
+- **D23**: Model path. Answers question 7 below. A hosted agent can reach models through its project endpoint without any gateway, so a gateway budget binds only if that path is closed. A Phase 0 spike tries two designs against the same negative test, a standalone API Management instance and Foundry's own AI Gateway integration, and the choice follows the evidence. Sources: https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agent-permissions and https://learn.microsoft.com/en-us/azure/foundry/configuration/enable-ai-api-management-gateway-portal
+- **D24**: One Foundry project per tenant. Answers the second half of question 4.
+- **D25**: Tenant provisioning. Answers question 5 below, against the council's default. A tenant is provisioned by an admin script that wraps the parameterised IaC module of section 6, item 3, and writes an append-only record (who, when, tenant, parameter hash, deployment id) to the platform audit store. The Azure Activity Log is the second witness. Provisioning is therefore outside the PR and approval trail.
+- **D26**: Data store. Settles D11 and question 8 below. Azure Table Storage holds bookings and the audit log. Conversation state uses Foundry's durable state store through FoundryCheckpointSaver, subject to a Phase 0 spike; the fallback is CosmosDBSaver on Cosmos DB serverless. Sources: https://learn.microsoft.com/rest/api/storageservices/authorize-with-azure-active-directory and https://github.com/langchain-ai/langchain-azure/blob/main/libs/azure-ai/README.md
+- **D27**: Knowledge index. Answers question 6 below and the third part of question 12. One index per tenant on the Azure AI Search Free tier (3 indexes, 50 MB), with role-based access only. This is subject to a Phase 0 spike, because Microsoft's pages disagree on whether keyless access works on the Free tier. The fallback is the Basic tier created on demand at £0.0762 an hour. Sources: https://learn.microsoft.com/azure/search/search-limits-quotas-capacity and https://learn.microsoft.com/azure/search/search-security-enable-roles
+- **D28**: Teardown and evidence. Answers the first part of question 12. Tearing down deletes the whole environment. Evidence survives in a small persistent resource group that teardown never touches: the Log Analytics workspace and Application Insights that telemetry is written to, the pipeline identity, and storage for exported audit records and eval results.
+- **D29**: Synthetic data only in every environment until Phase 5. Answers question 11.
+- **D30**: Schedule and stop line. Answers questions 6 and 7. Phase 0 is two weeks and Phase 1 is three weeks with the cuts in D31. If a time-box is at risk, scope is cut in an order the spec states and the date holds. The stop line is the end of Phase 3: the project counts as complete there, and Phases 4 to 6 remain as an optional backlog.
+- **D31**: Scope changes for Phases 0 and 1. Answers question 9. Added: exit criteria that show each control working through a negative demonstration, and a runtime prompt-injection guardrail with its own negative test. Removed: the reschedule intent. Not adopted from the council: per-phase demo scripts, a control matrix, a chat page and a regulated skin for Phase 1 (the regulated agent stays in Phase 3, D2).
+- **D32**: Langfuse. Amends D7 and answers question 10. The export stays in Phase 1 as an optional second exporter, off by default, switched on by a dev parameter and the owner's own Langfuse keys. It is outside the exit criteria and outside the one setup command.
+- **D33**: Callers and customer authorisation. Answers question 8. The only callers of the Phase 1 agent are named Entra test identities, the owner and the pipeline identity, each holding the Foundry Agent Consumer role scoped to the agent. There is no public or anonymous caller; a middle tier that passes on an end user belongs to Phase 4. To cancel a booking a customer must give the booking reference and the contact detail held on the booking. salon-mcp checks both server-side, and the model never decides. Source: https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agent-permissions
+- **D34**: Models. Completes D4. Model deployments are Global Standard in UK South, because current models are not offered there as regional deployments and UK South is outside the EU data zone. Prompts may be processed in any Azure region, which D29 makes acceptable. The spec records this as a residency gap, with regional or provisioned deployment as the path for real data, and fixes the exact models. Source: https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability
+- **D35**: Eval gate. One harness gates promotion: the microsoft/ai-agent-evals GitHub Action, pinned by commit SHA, comparing the candidate agent version with the served one. A DeepEval-only gate is the named fallback, built only if the Action fails its Phase 0 spike. Deterministic rules (tenant override, booking validation, confirmation before writes) are ordinary pytest tests. Source: https://github.com/microsoft/ai-agent-evals
+- **D36**: Phase 0 harness. The secrets hook, the test-edit hook, the four skills and the verifier subagent all stay in Phase 0. Only the Azure write assessment hook is removed (D20).
+
 ### Needed before later phases (council's proposed default in brackets)
-5. Tenant provisioning through PR and approval, or admin action plus audit log? [PR and approval, via IaC]
-6. Index per tenant or shared index with tenant filter? [Index per tenant]
-7. Model calls via APIM or Foundry's native gateway connection? [APIM, after a spike]
-8. Conversation store: see D11.
+5. Tenant provisioning: see D25.
+6. Index per tenant or shared index: see D27.
+7. Model path: see D23.
+8. Conversation store: see D26.
 9. Default transcript retention? [90 days]
 10. Shared cost allocation method? [Token share]
 11. Price book source? [Azure Retail Prices API, pinned monthly]
@@ -216,3 +246,10 @@ Full report: docs/research.md.
 - Azure MCP Server tools and start options: https://learn.microsoft.com/en-us/azure/developer/azure-mcp-server/tools/
 - Claude Code subagents: https://code.claude.com/docs/en/sub-agents
 - Claude Code MCP configuration: https://code.claude.com/docs/en/mcp
+- Hosted agent permissions: https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agent-permissions
+- Hosted agent release without changing production: https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-agent#release-a-version-without-changing-production
+- API Management v2 region availability: https://learn.microsoft.com/en-us/azure/api-management/api-management-region-availability
+- APIM llm-emit-token-metric: https://learn.microsoft.com/en-us/azure/api-management/llm-emit-token-metric-policy
+- Foundry AI Gateway: https://learn.microsoft.com/en-us/azure/foundry/configuration/enable-ai-api-management-gateway-portal
+- GitHub deployments and environments: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
+- Foundry model region availability: https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability
