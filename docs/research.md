@@ -56,7 +56,7 @@ Estimated effort saved by reusing ranks 1 to 5: roughly 1.5 to 2.5 weeks of infr
 | AI gateway | APIM Basic v2 or Standard v2 with llm-token-limit and llm-emit-token-metric | Policies GA | llm-token-limit not on Consumption tier; counter key can be tenant plus agent; rate limit returns 429, quota 403 |
 | MCP governance | APIM in front of external MCP servers | Check status | Tools and resources supported, not prompts; MCP 2025-06-18 or later; v2 support announced as preview |
 | RAG | Azure AI Search index called from the MCP server's search tool | GA | Knowledge base MCP endpoint is a preview API alternative |
-| Config and bookings | Table Storage or Cosmos DB serverless (final choice left to the spec, intent D11) | GA | Conditional writes or unique keys for double-booking protection |
+| Config and bookings | Table Storage (intent D26); Cosmos DB serverless was the alternative | GA | Conditional writes or unique keys for double-booking protection |
 | Observability | OpenTelemetry once, exported to App Insights and Langfuse OTLP endpoint | GA | One collector with two exporters |
 | Langfuse hosting | Single VM with Docker Compose, or Langfuse Cloud free tier | OSS | Compose lacks HA and backups; acceptable for a demo if stated |
 | Offline eval | DeepEval in pytest plus microsoft/ai-agent-evals | Action in preview | DeepEval for graph tests; Foundry evaluators for groundedness, intent resolution, task adherence |
@@ -109,14 +109,14 @@ Week 1 local slice; week 2 end to end in Azure; week 3 gateway and identity; wee
 
 ## 8. Risks and open questions
 
-- Region: confirm UK South hosted agents and model availability in the portal.
+- Region: hosted agents are listed for UK South, current models are Global Standard there, and the gateway is in UK West (intent D22, D34). Still to confirm in the portal.
 - Adapter churn: pin versions; isolate the adapter behind one module.
 - Preview dependencies: ai-agent-evals v3-beta, AI Search knowledge base MCP, APIM MCP on v2 tiers; keep fallbacks.
 - Private networking: hosted agent endpoints remain public; rely on Entra auth and state it.
 - Cost: APIM v2, AI Search and an always-on Langfuse VM dominate; tear down when idle; check the Azure pricing calculator.
 - Token limit accuracy: llm-token-limit counts prompt and completion tokens, counters are per gateway, concurrent requests can briefly exceed limits.
 - Langfuse data residency: traces contain personal data; mask at the collector.
-- Open: route model calls through APIM or Foundry's native gateway connection.
+- Model path: APIM or Foundry's native gateway connection, decided by a Phase 0 spike (intent D23).
 - Open: Foundry Toolbox vs APIM in front of MCP servers (less auth code vs portability).
 
 ## Sources

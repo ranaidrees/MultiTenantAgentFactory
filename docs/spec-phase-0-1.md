@@ -52,7 +52,7 @@ Where something could not be verified, the text says so and section 2.3 lists it
 
 | Finding in review 02 | Result | Source |
 |---|---|---|
-| A hosted agent can reach models without the gateway | Confirmed. "The agent has implicit access to core capabilities within its own project, such as model inferencing. No explicit role assignment is needed." | [ha-perm] |
+| A hosted agent can reach models without the gateway | Confirmed. "The agent has implicit access to core capabilities within its own project, such as model inferencing. No explicit role assignment is needed for the standard case." | [ha-perm] |
 | No API Management v2 tier can be created in UK South | Confirmed. All three v2 tiers are marked unavailable for new instances. UK West has Basic v2 and Standard v2. | [apim-region] |
 | Gateway token limit tiers | `llm-token-limit` applies to Developer, Basic, Basic v2, Standard, Standard v2, Premium and Premium v2. Consumption is not listed. | [apim-limit] |
 | Gateway metrics take five dimensions | Confirmed. Five custom dimensions per policy. Each dimension is limited to 100 values and each namespace to 1,000 active series; beyond that data is "silently discarded". | [apim-metric] |
@@ -87,8 +87,9 @@ confirmation at the spec gate; section 12 repeats them as questions.
 
 1. Models: gpt-5.4-nano for classification and extraction, gpt-5.4-mini for answers,
    text-embedding-3-small for vectors (section 5.1).
-2. The audit table and the container registry live in the persistent group, which extends D28's
-   list. Audit records are then written outside the environment, so no export step can fail.
+2. The persistent group holds more than D28 lists: the audit table itself, the container registry,
+   the workload identity for salon-mcp, the Workbook and the cost budget (section 3.2). Audit
+   records are then written outside the environment, so no export step can fail.
 3. The agent calls salon-mcp directly with its own Entra identity; a Foundry toolbox connection is
    the fallback (section 4).
 4. Initial eval thresholds and token budget figures (sections 5.4 and 5.8).
@@ -122,7 +123,7 @@ flowchart LR
 | Component | Service | Why this one | Source |
 |---|---|---|---|
 | Salon agent | LangGraph graph hosted with `langchain_azure_ai.agents.hosting`, Responses protocol | Official hosting path; the platform supplies endpoint, identity, sessions and scaling | [lg-hosted], [ha] |
-| Conversation state | `FoundryCheckpointSaver` on Foundry's durable state store | "Persist LangGraph runtime state in Foundry's durable state store"; needs container protocol 2.0.0 | [lc-azure] |
+| Conversation state | `FoundryCheckpointSaver` on Foundry's durable state store | Used to "persist LangGraph runtime state in Foundry's durable state store"; needs container protocol 2.0.0 | [lc-azure] |
 | Tool server | FastMCP on Azure Container Apps, Streamable HTTP | Reuses Azure-Samples/python-mcp-demos, which deploys FastMCP to Container Apps with azd | [mcp-demos] |
 | Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` | The only v2 tier creatable near UK South; v2 is required by Foundry's AI Gateway, so both spike paths can use it | [apim-region], [ai-gw] |
 | Bookings and audit | Azure Table Storage | Unique partition and row key; atomic batches within a partition; separate add, update and delete permissions | [table-insert], [table-egt], [table-authz] |
@@ -288,6 +289,9 @@ Policies live in the repository and are deployed with the environment.
   tool_name are span-only, because their cardinality would exhaust the limits.
 - **Backend.** The gateway authenticates to the model resource with its own managed identity
   [apim-auth].
+- **No product or subscription key per tenant.** The intent's section 6 mentions a gateway product.
+  This design does not create one: the caller's Entra identity already identifies the tenant, and a
+  subscription key would be a shared secret to store and rotate.
 
 Limits to state plainly: counters are kept per gateway; "concurrent or near-concurrent requests
 can temporarily exceed the configured token limit"; and without prompt estimation the request that
@@ -304,8 +308,9 @@ set per project [ai-gw], which D24 makes equivalent to per tenant.
 One index per tenant, named from tenant_id, on the Free tier (D27). The seed script pushes the
 synthetic FAQ documents with precomputed vectors; vector search is available "on all tiers at no
 extra charge" [search-vector]. `search_faq` runs a hybrid query and returns ids for citation. No
-indexer is used, so the Free tier's missing service identity does not matter. Free allows three
-indexes [search-limits], which covers Phases 1 and 2.
+indexer and no semantic ranking are used, because Microsoft says the Free tier "doesn't support
+semantic ranking or managed identities" [search-free]. Free allows three indexes [search-limits],
+which covers Phases 1 and 2.
 
 ### 5.6 Telemetry and the dashboard
 
@@ -520,7 +525,7 @@ agent, and can it be mapped to a tenant?
 | ai-agent-evals Action | `v3-beta`; the docs page is marked preview [eval-repo], [eval-action] | Commit SHA | DeepEval-only gate (D35) |
 | Agent guardrails on hosted agents | "Agent guardrails are in preview" [guardrail-overview] | Policy id in IaC | Guardrail on the model deployment, which applies to all Foundry models sold by Azure [guardrail-overview] |
 | Task adherence and intent resolution evaluators | Marked preview [agent-evals] | Evaluator names in the dataset | Tool call accuracy and custom graders |
-| Foundry AI Gateway (only if S1 chooses it) | Portal-driven; listed as preview in the intent's section 12 | None available | Standalone gateway |
+| Foundry AI Gateway (only if S1 chooses it) | Preview: Microsoft's API Management page heads it "AI gateway in Microsoft Foundry (preview)" [apim-aigw]. Set up through the portal [ai-gw] | None available | Standalone gateway |
 | Hosted agent network egress controls (only if S1 uses them) | Preview [guardrail] | Rule set in IaC | Path without them |
 | azd `azure.ai.agents` extension | Beta: the official sample requires `>=1.0.0-beta.9` [sample-hitl] | Exact version | Deploy through the REST API [deploy] |
 | Azure MCP server (harness only) | `3.0.0-beta.49` (D10) | Exact version | az and azd |
@@ -535,7 +540,7 @@ Ceiling: £40 a month for the whole dev environment (D21).
 | Item | Billing basis | Price | Source |
 |---|---|---|---|
 | Gateway, API Management Basic v2 | Per hour it exists | £0.1551 an hour | [prices] |
-| Search, Free tier | None | £0 | [search-limits] |
+| Search, Free tier | None | £0 | [prices] |
 | Container registry, Basic | Per day | £0.1257 a day, about £3.82 a month | [prices] |
 | Container Apps | Per request and per second of use; scales to zero | £0.3019 per million requests; compute within the free tier at this volume | [prices], [aca-scale] |
 | Table and blob storage | Per GB and per operation | Not priced; a few megabytes | Not verified |
@@ -667,7 +672,8 @@ Design risks:
 For the owner, at the spec gate:
 
 1. Are gpt-5.4-nano, gpt-5.4-mini and text-embedding-3-small the models?
-2. May the audit table and the container registry live in the persistent group, extending D28?
+2. May the persistent group also hold the audit table, the container registry, the salon-mcp
+   workload identity, the Workbook and the budget, extending D28?
 3. Is a direct call from the agent to salon-mcp the default, with a toolbox connection as fallback?
 4. Are the initial figures acceptable: 20,000 tokens a minute, 2,000,000 tokens a month, pass
    rates of 0.80, p95 latency of 20 seconds?
@@ -716,6 +722,7 @@ All opened on 2026-10-03.
 | [apim-mi] | https://learn.microsoft.com/azure/api-management/api-management-howto-use-managed-service-identity |
 | [apim-softdel] | https://learn.microsoft.com/azure/api-management/soft-delete |
 | [apim-price] | https://azure.microsoft.com/en-gb/pricing/details/api-management/ |
+| [apim-aigw] | https://learn.microsoft.com/azure/api-management/genai-gateway-capabilities#ai-gateway-in-microsoft-foundry-preview |
 | [ai-gw] | https://learn.microsoft.com/en-us/azure/foundry/configuration/enable-ai-api-management-gateway-portal |
 | [ai-limits] | https://learn.microsoft.com/azure/foundry/control-plane/how-to-enforce-limits-models |
 | [model-regions] | https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability |
@@ -726,6 +733,7 @@ All opened on 2026-10-03.
 | [search-rbac] | https://learn.microsoft.com/azure/search/search-security-rbac |
 | [search-mt] | https://learn.microsoft.com/azure/search/search-modeling-multitenant-saas-applications |
 | [search-vector] | https://learn.microsoft.com/azure/search/vector-search-overview |
+| [search-free] | https://learn.microsoft.com/azure/search/search-try-for-free |
 | [table-authz] | https://learn.microsoft.com/rest/api/storageservices/authorize-with-azure-active-directory |
 | [table-entra] | https://learn.microsoft.com/azure/storage/tables/authorize-access-azure-active-directory |
 | [table-insert] | https://learn.microsoft.com/rest/api/storageservices/insert-entity |
