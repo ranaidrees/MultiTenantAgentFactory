@@ -59,7 +59,7 @@ Estimated effort saved by reusing ranks 1 to 5: roughly 1.5 to 2.5 weeks of infr
 | Config and bookings | Table Storage (intent D26); Cosmos DB serverless was the alternative | GA | Conditional writes or unique keys for double-booking protection |
 | Observability | OpenTelemetry once, exported to App Insights and Langfuse OTLP endpoint | GA | One collector with two exporters |
 | Langfuse hosting | Single VM with Docker Compose, or Langfuse Cloud free tier | OSS | Compose lacks HA and backups; acceptable for a demo if stated |
-| Offline eval | DeepEval in pytest plus microsoft/ai-agent-evals | Action in preview | DeepEval for graph tests; Foundry evaluators for groundedness, intent resolution, task adherence |
+| Offline eval | microsoft/ai-agent-evals as the judged harness, with scripted pytest for the write intents; DeepEval only as the fallback (intent D35, D44) | Action in preview | Foundry evaluators for groundedness, intent resolution, task adherence |
 | Online eval | Foundry continuous evaluation; Langfuse LLM-as-judge | GA | |
 | IaC and CD | azd plus Bicep, GitHub Actions with OIDC, environments with required reviewers | GA | |
 | Security | Managed identity, Key Vault, Content Safety Prompt Shields, Entra auth on MCP | GA | Hosted agent endpoint stays public even with VNet (documented limitation) |
@@ -113,11 +113,11 @@ Week 1 local slice; week 2 end to end in Azure; week 3 gateway and identity; wee
 - Adapter churn: pin versions; isolate the adapter behind one module.
 - Preview dependencies: ai-agent-evals v3-beta, AI Search knowledge base MCP, APIM MCP on v2 tiers; keep fallbacks.
 - Private networking: hosted agent endpoints remain public; rely on Entra auth and state it.
-- Cost: APIM v2, AI Search and an always-on Langfuse VM dominate; tear down when idle; check the Azure pricing calculator.
+- Cost: only the gateway bills for existing, so it is removed nightly (intent D37), under a ceiling of £40 a month (D21). Rates and usage tables are in section 8 of docs/spec-phase-0-1.md. A Langfuse VM is a Phase 6 matter.
 - Token limit accuracy: llm-token-limit counts prompt and completion tokens, counters are per gateway, concurrent requests can briefly exceed limits.
 - Langfuse data residency: traces contain personal data; mask at the collector.
-- Model path: APIM or Foundry's native gateway connection, decided by a Phase 0 spike (intent D23).
-- Open: Foundry Toolbox vs APIM in front of MCP servers (less auth code vs portability).
+- Model path: a standalone API Management gateway, tested by a Phase 0 spike, with Foundry's AI Gateway as a desk check (intent D23, D47).
+- Toolbox or direct calls to MCP servers: the agent calls salon-mcp directly, with a Foundry toolbox connection as the fallback (intent D52).
 
 ## Sources
 - Foundry hosted LangGraph agents: https://learn.microsoft.com/en-us/azure/foundry/how-to/develop/langchain-hosted-agents

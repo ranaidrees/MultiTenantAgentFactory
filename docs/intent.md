@@ -8,7 +8,7 @@ Revision 8 records the owner's response to council review 02 (D13 to D17). The r
 Revision 9 applies three cleanup corrections approved by the owner: the isolation test phases in section 13, question 4 removed (answered by D6) and question 8 pointed at D11.
 Revision 10 records D18 (the repository is to be made public).
 Revision 11 records the Stage 2 design interview (D19 to D36), amends the text those decisions contradict, and applies two unopposed corrections from council review 02, debate 7. Each amendment is marked with its decision number or source.
-Revision 12 records the Stage 2 spec gate (D37 to D55), held after council review 03 of the draft spec, and amends the text those decisions contradict. Each amendment is marked with its decision number.
+Revision 12 records the Stage 2 spec gate (D37 to D55), held after council review 03 of the draft spec, and amends the text those decisions contradict. Each amendment is marked with its decision number. It also applies two cleanup corrections approved by the owner: the file name in the heading of section 7 and the mitigations in section 13.
 
 ## 1. Problem
 
@@ -76,7 +76,7 @@ Stop line (D30): the project counts as complete at the end of Phase 3. Phases 4 
 
 Phase 1 exit criteria: a stranger can clone the repo, run one setup command plus one pipeline, and see one tenant's agent served, metered, evaluated and observable, with every release traceable to an approved PR. Each control is shown working by a negative demonstration, not only shown to exist (D31). Tenant provisioning traces to its audit record, not to a PR (D25).
 
-## 7. Later phases (summary, detail moves to spec.md when each phase starts)
+## 7. Later phases (summary, detail moves to docs/spec-phase-N.md when each phase starts)
 
 - **Phase 2 Multi-tenant**: second tenant through the same IaC module; isolation tests for knowledge, bookings, telemetry and gateway budgets run on every PR.
 - **Phase 3 Factory**: template filling from a validated spec, never free-form code generation; generation only opens a PR; policy checks (attribution keys present, writes behind confirmation, minimum eval cases, tenant enforcement); the Factory holds no deploy credentials.
@@ -161,8 +161,8 @@ Full report: docs/research.md.
 
 ## 13. Risks
 - Scope: five subsystems for one engineer; mitigated by strict phase gates and a self-contained MVP
-- Single-tenant MVP hides isolation bugs until Phase 2; mitigated by tenant-ready code and override tests in Phase 1
-- Cross-tenant leakage; mitigated by caller-derived tenant_id, override unit tests in Phase 1 and cross-tenant isolation tests from Phase 2
+- Single-tenant MVP hides isolation bugs until Phase 2; mitigated by tenant-ready code, override tests and a local two-tenant test in Phase 1 (D49)
+- Cross-tenant leakage; mitigated by caller-derived tenant_id, override unit tests and a local two-tenant test in Phase 1 (D49), and cross-tenant isolation tests on real infrastructure from Phase 2
 - SDK churn in Foundry hosting; mitigated by a thin adapter
 - Cost growth per tenant; nightly gateway teardown (D37), free tiers where possible, £40 a month ceiling for dev (D21)
 - PII in traces and transcripts; masking at the collector, retention and access audit
