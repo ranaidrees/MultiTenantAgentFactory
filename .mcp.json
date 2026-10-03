@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "microsoft-learn": {
+      "type": "http",
+      "url": "https://learn.microsoft.com/api/mcp"
+    },
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "azure": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@azure/mcp@3.0.0-beta.49", "server", "start"]
+    }
+  }
+}
