@@ -1,10 +1,11 @@
 # Intent: Multi-tenant AgentOps platform on Azure with Agent Factory
 
-Author: Rana Naveed Idrees. Status: accepted (revision 8). Owner decisions D1 to D17 recorded in section 14. Date: 2026-10-03.
+Author: Rana Naveed Idrees. Status: accepted (revision 9). Owner decisions D1 to D17 recorded in section 14. Date: 2026-10-03.
 Stage: 1 of 6 (Plan). Location: docs/intent.md. Next artifact: docs/spec-phase-0-1.md (Phases 0 and 1).
 Council record: docs/council/01-intent-review.md (revision 4) and docs/council/02-intent-review.md (revision 7)
 Revision 7 records the Stage 0 harness interview (D7 to D12) and amends the text those decisions contradict; each amendment is marked with its decision number.
 Revision 8 records the owner's response to council review 02 (D13 to D17). The review's other questions remain open for the spec.
+Revision 9 applies three cleanup corrections approved by the owner: the isolation test phases in section 13, question 4 removed (answered by D6) and question 8 pointed at D11.
 
 ## 1. Problem
 
@@ -151,7 +152,7 @@ Full report: docs/research.md.
 ## 13. Risks
 - Scope: five subsystems for one engineer; mitigated by strict phase gates and a self-contained MVP
 - Single-tenant MVP hides isolation bugs until Phase 2; mitigated by tenant-ready code and override tests in Phase 1
-- Cross-tenant leakage; mitigated by caller-derived tenant_id and isolation tests from Phase 1
+- Cross-tenant leakage; mitigated by caller-derived tenant_id, override unit tests in Phase 1 and cross-tenant isolation tests from Phase 2
 - SDK churn in Foundry hosting; mitigated by a thin adapter
 - Cost growth per tenant; nightly teardown, free tiers where possible
 - PII in traces and transcripts; masking at the collector, retention and access audit
@@ -174,7 +175,7 @@ Full report: docs/research.md.
 - **D8**: Artifact names and layout. The chain is docs/intent.md, then docs/spec-phase-N.md, then docs/implementation-plan-phase-N.md, then code, then PR. Files are kept per phase rather than overwritten. Phases 0 and 1 share docs/spec-phase-0-1.md and docs/implementation-plan-phase-0-1.md. "implementation-plan" replaces the playbook's "plan.md".
 - **D9**: Claude Code sessions may run Azure write commands in any environment, including prod, through az, azd or the Azure MCP server. Before each write Claude states the estimated added monthly cost and the blast radius. It proceeds without asking only when all of these hold: the estimate is up to £20 a month; the command touches only this project's resource groups; it deletes nothing; it makes no role, policy or Entra change outside the bootstrap. Anything else waits for the owner's yes. This removes the non-goal on deploying to prod outside CI and replaces the earlier rule that only GitHub Actions deploys. GitHub Actions with OIDC and environment approval (section 6, item 8) remains the standard release path. No deny rules or blocking hooks for Azure commands were added in Stage 0; how the assessment is enforced mechanically is a question for the Phases 0 and 1 spec. Consequence to weigh in the spec: the "pipelines deploy, humans approve" story now rests on the standard path and the audit trail, not on a hard block.
 - **D10**: .mcp.json holds Microsoft Learn MCP, Context7 (added to the original list) and Azure MCP, pinned to @azure/mcp 3.0.0-beta.49 with write tools enabled under D9. Playwright is deferred to Phase 4.
-- **D11**: Left open for the spec, to be raised in its clarifications section: the bookings and conversation store (Cosmos DB serverless or PostgreSQL), and questions 5, 6 and 7 below. The note in docs/research.md that the store was "later revised to PostgreSQL in spec" refers to a spec that does not exist and has no standing.
+- **D11**: Left open for the spec, to be raised in its clarifications section: the bookings and conversation store (Cosmos DB serverless or PostgreSQL), and questions 5, 6 and 7 below. The note in docs/research.md that the store was "later revised to PostgreSQL in spec" refers to a spec that does not exist and has no standing; the note was removed in revision 9.
 - **D12**: The repository is private under github.com/ranaidrees. Commits are authored as Rana Idrees with the account's GitHub noreply address.
 
 ### Decided after council review 02 (2026-10-03)
@@ -185,11 +186,10 @@ Full report: docs/research.md.
 - **D17**: Two harness additions. Each session writes a journal entry in docs/journal/ from a template, and starts from the handoff in the previous entry. A /cleanup skill reports broken, stale, duplicated, unused or unnecessary files and changes nothing without the owner's approval; it runs before the final commit of each stage. No document is added outside the artifact chain, council reviews, journal and harness configuration unless the owner asks.
 
 ### Needed before later phases (council's proposed default in brackets)
-4. Claude plan type: Pro/Max or Team? (Affects secret handling in cloud sessions) Answered by D6.
 5. Tenant provisioning through PR and approval, or admin action plus audit log? [PR and approval, via IaC]
 6. Index per tenant or shared index with tenant filter? [Index per tenant]
 7. Model calls via APIM or Foundry's native gateway connection? [APIM, after a spike]
-8. Conversation store: Cosmos DB serverless or Table and Blob? [Cosmos DB serverless]
+8. Conversation store: see D11.
 9. Default transcript retention? [90 days]
 10. Shared cost allocation method? [Token share]
 11. Price book source? [Azure Retail Prices API, pinned monthly]

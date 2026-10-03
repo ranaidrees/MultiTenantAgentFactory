@@ -56,7 +56,7 @@ Estimated effort saved by reusing ranks 1 to 5: roughly 1.5 to 2.5 weeks of infr
 | AI gateway | APIM Basic v2 or Standard v2 with llm-token-limit and llm-emit-token-metric | Policies GA | llm-token-limit not on Consumption tier; counter key can be tenant plus agent; rate limit returns 429, quota 403 |
 | MCP governance | APIM in front of external MCP servers | Check status | Tools and resources supported, not prompts; MCP 2025-06-18 or later; v2 support announced as preview |
 | RAG | Azure AI Search index called from the MCP server's search tool | GA | Knowledge base MCP endpoint is a preview API alternative |
-| Config and bookings | Table Storage or Cosmos DB serverless (later revised to PostgreSQL in spec) | GA | Conditional writes or unique keys for double-booking protection |
+| Config and bookings | Table Storage or Cosmos DB serverless (final choice left to the spec, intent D11) | GA | Conditional writes or unique keys for double-booking protection |
 | Observability | OpenTelemetry once, exported to App Insights and Langfuse OTLP endpoint | GA | One collector with two exporters |
 | Langfuse hosting | Single VM with Docker Compose, or Langfuse Cloud free tier | OSS | Compose lacks HA and backups; acceptable for a demo if stated |
 | Offline eval | DeepEval in pytest plus microsoft/ai-agent-evals | Action in preview | DeepEval for graph tests; Foundry evaluators for groundedness, intent resolution, task adherence |
