@@ -25,6 +25,12 @@ opinion on it. Follow the steps in order.
    `git status --porcelain -- <path>` shows any.
 6. Upstream artifacts: `docs/intent.md` and every earlier artifact in the chain for the same phase
    (see CLAUDE.md), excluding the artifact under review.
+7. Working folder: a temporary folder outside the repository (the session scratchpad if there is
+   one, otherwise the system temp directory). Reviews and rebuttals are passed between steps as
+   files there, so briefs stay short and nothing is retyped. It is not committed.
+8. If the `council-*` agent types are not found, stop and tell the owner to start a new session:
+   Claude Code loads `.claude/agents/` at session start. Do not substitute other agent types,
+   because they do not carry the members' tool limits.
 
 ## 2. Round one: independent reviews
 
@@ -53,16 +59,17 @@ without it and tell the chair which member is missing.
 ## 3. Anonymise
 
 Remove anything that names a role or lens from each review. Label the reviews Review A to Review E
-in an order unrelated to the member list above. Keep the label-to-member mapping to yourself until
-step 5.
+in an order unrelated to the member list above, and save each one unedited in the working folder as
+`review-A.md` to `review-E.md`. Keep the label-to-member mapping to yourself until step 5.
 
 ## 4. Round two: one anonymised rebuttal
 
 Start the five members again in parallel, in a single message, and wait for all five. Each member
-receives its own round-one review and the other four anonymised reviews, with this brief:
+is told which file is its own review and reads the other four, with this brief:
 
-> Rebuttal round for `<path>`. Below is your own review, then four reviews by other members,
-> identities removed. Return only this, in at most 300 words:
+> Rebuttal round for `<path>` (<revision>). The five round-one reviews are files in
+> `<working folder>`. Your own review is `review-<label>.md`. The other four, identities removed,
+> are `review-<label>.md`, and so on. Read all five. Return only this, in at most 300 words:
 >
 > **Final verdict**: Accept, Accept with changes, or Reject. Say whether it changed and why.
 >
@@ -74,18 +81,15 @@ receives its own round-one review and the other four anonymised reviews, with th
 > **Top three issues overall**: across all five reviews, ranked by impact.
 >
 > **Missed by everyone**: at most one item, or "nothing".
->
-> Your review: <the member's round-one review>
->
-> Review <label>: <text> (repeated for the other four)
 
 There is exactly one rebuttal round. Do not run another.
 
 ## 5. Chair
 
-Start `council-chair` with: the artifact path and revision, the output path, today's date, the
-label-to-member mapping, the five reviews and the five rebuttals in full and unedited, and the name
-of any missing member. The chair writes the output file. The chair never adds scope.
+Save the label-to-member mapping and the five rebuttals, in full and unedited, as `rebuttals.md` in
+the working folder. Start `council-chair` with: the artifact path and revision, the output path,
+today's date, the working folder (five review files and `rebuttals.md`), and the name of any
+missing member. The chair writes the output file. The chair never adds scope.
 
 ## 6. Report
 

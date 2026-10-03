@@ -29,6 +29,8 @@ At each gate run `/council <artifact path>`; the review is written to `docs/coun
   asking only if all of these hold: up to £20 a month; touches only this project's resource groups;
   deletes nothing; no role, policy or Entra change outside the bootstrap. Otherwise stop and wait
   for the owner's yes. Releases still go through GitHub Actions with environment approval.
+- Session journal: start by reading section 7 of the latest entry in `docs/journal/`. Before the
+  final commit, write `docs/journal/NN-<stage>.md` from `docs/journal/TEMPLATE.md`.
 - Writing style: plain British English, no em dashes.
 
 ## Architecture
