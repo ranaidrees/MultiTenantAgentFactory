@@ -88,7 +88,7 @@ to an interviewer and turned into a template. That request created this journal.
 18. The owner approved three things. Applied cleanup items 1 to 3 (intent revision 9, commit
     254806e). Ended two stale `azmcp.exe` processes and removed the user-level `azure` MCP entry.
     The owner decided to make the repository public (D18, revision 10); the session was not
-    permitted to change visibility, so that step is left to the owner.
+    permitted to change visibility, so the owner did it in GitHub settings the same day.
 
 ## 3. Owner decisions
 
@@ -174,8 +174,6 @@ to an interviewer and turned into a template. That request created this journal.
 Owner, before the next session:
 - This repository pushes through the active gh account. If a push is refused, run
   `gh auth switch --user ranaidrees`.
-- Make the repository public yourself (D18), in GitHub under Settings, General, Danger Zone. A
-  session is not permitted to do this for you.
 - Answer questions 4 to 12 in [02-intent-review.md](../council/02-intent-review.md), or leave them
   for the spec's clarifications section. Questions 1 and 2 are answered by D13 and D14.
 - Decide whether to install Docker (missing), and whether to upgrade npm (9.2.0) and gh (2.76.2).
@@ -187,7 +185,8 @@ Owner, before the next session:
 
 Next session (Stage 2, Design):
 - If the owner's answers change the intent, record them as revision 11 first and commit.
-- Confirm the repository is public before the spec relies on environments or required reviewers.
+- The repository is public (verified 2026-10-03), so environments, required reviewers and
+  protected branches are available to the spec.
 - Write `docs/spec-phase-0-1.md`. Its clarifications section must cover D11 (data store and the
   intent's questions 5 to 7) and the council's unopposed corrections (debate 7 in review 02).
 - Run `/council docs/spec-phase-0-1.md`, this time with the registered agents.
