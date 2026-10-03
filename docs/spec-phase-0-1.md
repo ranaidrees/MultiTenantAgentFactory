@@ -1,7 +1,8 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: draft for council review. Date: 2026-10-03.
-Stage: 2 of 6 (Design). Reads: docs/intent.md revision 11 (decisions D1 to D36).
+Author: Rana Naveed Idrees. Status: revised after council review 03; awaiting the owner's acceptance. Date: 2026-10-03.
+Stage: 2 of 6 (Design). Reads: docs/intent.md revision 12 (decisions D1 to D55).
+Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
 
 ## 1. Status and scope
@@ -14,14 +15,17 @@ In scope:
 - Phase 1: one governed agent for one tenant in the dev environment, built so that a second tenant
   is a second run of the same module.
 
-Out of scope, by decision: a live (prod) environment (D19); a second tenant and cross-tenant
-isolation tests (Phase 2, D1); the Agent Factory and the regulated document agent (Phase 3, D2);
-the consoles and everything after the stop line (D30); real personal data (D29).
+Out of scope, by decision: a live (prod) environment (D19); a second tenant in Azure and isolation
+tests against real infrastructure (Phase 2, D1, D49); the Agent Factory and the regulated document
+agent (Phase 3, D2); vector retrieval (Phase 3, D45); the consoles and everything after the stop
+line (D30); real personal data (D29).
 
 Citation rule: every design claim carries a key in square brackets that resolves to a URL in
-section 13. Every URL was opened in this session on 2026-10-03. Prices are from the Azure Retail
-Prices API through the Azure MCP pricing tool on the same day, in GBP, and are marked [prices].
-Where something could not be verified, the text says so and section 2.3 lists it.
+section 13. Every URL was opened on 2026-10-03, in the design session or in the gate session.
+Prices are from the Azure Retail Prices API on the same day, in GBP, and are marked [prices].
+Microsoft prices in USD: "Other non-USD prices returned by the API are for your reference to help
+you estimate budget expenses" [prices-api]. Where something could not be verified, the text says so
+and section 2.5 lists it.
 
 ## 2. Clarifications
 
@@ -35,20 +39,20 @@ Where something could not be verified, the text says so and section 2.3 lists it
 | Council Q6: stop line | End of Phase 3 | D30 |
 | Council Q7: Phase 1 length | Three weeks with cuts; Phase 0 is two weeks | D30, D31 |
 | Council Q8: Phase 1 caller | Named Entra test identities only | D33 |
-| Council Q9: additions | Negative demos and a prompt-injection guardrail; nothing else | D31 |
+| Council Q9: additions | Negative demos and a prompt-injection guardrail; later extended at the spec gate | D31, D46 |
 | Council Q10: Langfuse | Optional exporter, off by default | D32 |
 | Council Q11: real data before Phase 5 | No, synthetic only | D29 |
-| Council Q12: evidence and teardown | Full teardown; evidence lives in a persistent group | D28 |
+| Council Q12: evidence and teardown | Evidence lives in a persistent group; teardown later narrowed to the gateway | D28, D37 |
 | Council Q12: D9 not cumulative | £40 a month ceiling for dev | D21 |
 | Council Q12: search tier unpriced | Free tier, by spike; Basic at £0.0762 an hour as fallback | D27 |
 | Intent Q5: tenant provisioning | Admin script around the IaC module, with an audit record | D25 |
 | Intent Q6: index per tenant or shared | Index per tenant | D27 |
-| Intent Q7: model path | Spike both standalone gateway and Foundry AI Gateway | D23 |
+| Intent Q7: model path | Standalone gateway; Foundry's AI Gateway as a desk check | D23, D47 |
 | Intent Q8 and D11: data store | Table Storage; Foundry state store for conversation state | D26 |
 | D6 against D13 | The owner's Desktop login is a second prod credential | D20 |
 | Enforcement of D13 and D14 | Written rule only, by the owner's choice; accepted risk | D20 |
 
-### 2.2 Council findings, checked against current documentation
+### 2.2 Council review 02 findings, checked against current documentation
 
 | Finding in review 02 | Result | Source |
 |---|---|---|
@@ -59,62 +63,98 @@ Where something could not be verified, the text says so and section 2.3 lists it
 | AI Search tier limits | Free: 3 indexes. Basic: 15. S1: 50. | [search-limits] |
 | Hosted agents in UK South and UK West | Both are listed for hosted agents. The wider Agent Service table lists UK South but not UK West. | [ha], [agent-regions] |
 
-Two statements I made during the interview were wrong or too strong, and are corrected here:
+Two statements I made during the design interview were wrong or too strong, and are corrected here:
 
 - I said the Search Free tier needs key authentication. Microsoft's pages disagree. The roles page
   says role-based access works on "any tier, including free" [search-roles]; the keyless client
-  page says the service "must be a billable tier (basic or higher)" [search-keyless]. Spike S4
-  settles it.
+  page says the service "must be a billable tier (basic or higher)" [search-keyless]. A third page,
+  opened at the gate, sides with the stricter reading: the service "must be a billable tier (Basic
+  or higher) for role-based access" [search-index]. Spike S4 settles it, and the Basic fallback is
+  now the likelier outcome.
 - I repeated a Microsoft Q&A answer that gpt-4.1-mini retires in October 2026. The retirement
   schedule gives 2027-04-14 [retire]. D34 is unaffected: the regional models in UK South are all
   marked Deprecated or Legacy, and current models are Global Standard only [model-regions].
 
-### 2.3 Not verified
+### 2.3 Decisions at the spec gate
+
+"Q" numbers are the owner questions in docs/council/03-spec-phase-0-1-review.md. "Draft Q" numbers
+are the questions in section 12 of the draft at commit e13557b.
+
+| Question | Answer | Decision |
+|---|---|---|
+| Q1: nightly teardown | The gateway only | D37 |
+| Q2: full rebuild | `up` restores the approved image only | D38 |
+| Q3: a session's credential can approve | Written rule; accepted risk | D41 |
+| Q4: gate additions | Branch rule, served-image check, teardown identity, full-SHA pins | D42 |
+| Q5: gating the write intents | Scripted tests beside the eval Action | D44 |
+| Q6: thresholds | Measured in spike S6 before they are fixed; cost and latency stay | D44 |
+| Q7 and draft Q4: token quota | 150,000 tokens a day; a monthly figure is reported | D39 |
+| Q8: evidence | A GitHub Release for each promotion | D43 |
+| Q9: retrieval | Keyword only | D45 |
+| Q10: agent additions | Validator node, pinned model versions, unanswerable questions, poisoned-passage test | D46 |
+| Q11 and draft Q5: gateway path B | Desk check only; S2 runs before S1 | D47 |
+| Q11: Phase 0 cut order | Added | D48 |
+| Q12: two-tenant test | Added, local | D49 |
+| Q13: points raised only in rebuttal | All six addressed | D53 |
+| Debate 7: unopposed corrections | Applied | D54 |
+| Draft Q1: models | gpt-5.4-nano and gpt-5.4-mini | D50 |
+| Draft Q2: persistent group | Extended | D51 |
+| Draft Q3 and Q7: salon-mcp | Direct call; public endpoint in Phase 1 | D52 |
+| Draft Q6: CLAUDE.md's Azure writes rule | Already updated in commit e13557b | None |
+| Session teardown | A session may run the gateway teardown without asking | D40 |
+
+### 2.4 Council review 03 findings, checked against current documentation
+
+| Finding in review 03 | Result | Source |
+|---|---|---|
+| Deleting an agent or a version is not rollback | Confirmed. "Retain previous versions and images while sessions or rollback requirements still depend on them. Deleting the agent or a version isn't a rollback operation." | [release] |
+| One permission creates a version and moves the selector | Confirmed. Each needs `Microsoft.CognitiveServices/accounts/AIServices/agents/write` "at the scope of the Foundry project" | [ha-perm] |
+| A token with the `repo` scope can approve a deployment | Confirmed. "OAuth app tokens and personal access tokens (classic) need the repo scope to use this endpoint." | [gh-review] |
+| Environments accept any branch by default | Confirmed. "No restriction: No restriction on which branch or tag can deploy to the environment." | [gh-env] |
+| The eval Action sends single queries and reports only a summary | Confirmed. Data is an "Array of input objects with `query` and optional evaluator fields", and results "are output to the summary section" | [eval-action] |
+| Foundry's AI Gateway is set up through the portal | Confirmed. The only documented setup is a sequence of portal steps | [ai-gw] |
+| Purging a gateway needs rights at subscription scope | Confirmed. Two named actions "at the subscription scope in addition to Contributor access to the API Management instance" | [apim-softdel] |
+| Bicep cannot create a search index | Confirmed. "There's no Bicep template support for Azure AI Search data plane operations like creating an index" | [search-bicep] |
+| Risk and safety evaluators are not offered in UK South | Confirmed. UK South is absent from the list of supported regions | [eval-regions] |
+| Workflow logs and log tables expire | Confirmed. Workflow logs "are retained for 90 days before they are automatically deleted" [gh-retention]. "By default, all tables in a Log Analytics workspace retain data for 30 days, except for log tables with 90-day default retention" [la-retention] | [gh-retention], [la-retention] |
+| Model quota is unverified | Resolved. The subscription holds Global Standard quota in UK South for both models, read on 2026-10-03 with `az cognitiveservices usage list` | None |
+| The token counter is lost when the gateway is purged | Not verified. The policy "tracks token usage independently at each gateway where it is applied" [apim-limit]; the page does not say what a delete does | Spike S1 |
+
+### 2.5 Not verified
+
+The draft listed hosted agent compute, model tokens and logs as unpriced. All three were found in
+the Azure Retail Prices API at the gate and are in section 8. What remains:
 
 | Item | Why | Handling |
 |---|---|---|
-| Hosted agent compute price | The pricing page showed no figures when fetched [ha-price] | Measured in Phase 0 week 1 from Cost Management |
-| Model token prices | The pricing tool returned an error for this service family | Token spend is capped by the gateway quota; measured in week 1 |
-| Log Analytics price per GB | Not returned by the pricing tool | Volume is small; measured in week 1 |
-| "Free for up to 100,000 requests when created as an AI Gateway in Azure AI Foundry" | The pricing page gives no further terms [apim-price] | S1 reads the bill; not a planning assumption |
-| Whether Foundry's AI Gateway binds hosted agent calls | The page does not say [ai-gw] | Spike S1 |
+| The unit of the hosted agent memory meter | The API gives the unit as one hour. The pricing page heads the column as memory per GiB hour but shows no figures [ha-price] | Read from Cost Management in Phase 0 week 1 |
+| Tokens in one conversation and in one gate run | Estimates only | Measured in spike S6 (D39) |
+| Whether a gateway's token counter survives delete and purge | The page does not say [apim-limit] | Spike S1 |
+| Whether the agent's own Foundry resource can run with no chat model deployment | Not stated [ha-perm] | Spike S1 |
+| Whether Foundry's AI Gateway has an API or Bicep route, and binds hosted agent calls | The page describes the portal only [ai-gw] | Desk check in spike S1 (D47) |
+| "Free for up to 100,000 requests when created as an AI Gateway in Azure AI Foundry" | The pricing page gives no further terms [apim-price] | Not a planning assumption |
 | How a hosted agent's code obtains a token for a custom audience | Docs describe the toolbox path, not the raw call [mcp-auth], [toolbox-ha] | Spike S2 |
-
-### 2.4 Proposals not yet put to the owner
-
-These are choices this spec makes that the interview did not cover. Each needs the owner's
-confirmation at the spec gate; section 12 repeats them as questions.
-
-1. Models: gpt-5.4-nano for classification and extraction, gpt-5.4-mini for answers,
-   text-embedding-3-small for vectors (section 5.1).
-2. The persistent group holds more than D28 lists: the audit table itself, the container registry,
-   the workload identity for salon-mcp, the Workbook and the cost budget (section 3.2). Audit
-   records are then written outside the environment, so no export step can fail.
-3. The agent calls salon-mcp directly with its own Entra identity; a Foundry toolbox connection is
-   the fallback (section 4).
-4. Initial eval thresholds and token budget figures (sections 5.4 and 5.8).
-5. If both gateway paths pass spike S1, the standalone gateway is chosen (section 6.2).
-6. CLAUDE.md's Azure writes rule still cites only D9, D13 and D14. It should gain D20 and D21. It
-   is harness configuration, so it is left for the owner to approve through /cleanup.
+| Whether role-based access works on the Search Free tier | Three pages disagree [search-roles], [search-keyless], [search-index] | Spike S4 |
+| Whether the eval Action can evaluate a hosted agent version that is not served, and yields a result a script can read | The page documents a summary only [eval-action] | Spike S6 |
+| Whether a safety evaluator can run from a UK South project | UK South is not in the supported list [eval-regions] | Spike S6 (D53) |
 
 ## 3. Architecture
 
 ### 3.1 Components and regions
 
 Everything is in UK South except the gateway, which is in UK West (D22). The agent endpoint, the
-gateway and salon-mcp all have public endpoints protected by Entra tokens; private networking is
-out of scope and is recorded as a gap in section 11.
+gateway and salon-mcp all have public endpoints protected by Entra tokens (D52); private networking
+is out of scope and is recorded as a gap in section 11.
 
 ```mermaid
 flowchart LR
   caller[Test client or pipeline] -->|Entra token| agent[Salon agent: Foundry hosted agent, one project per tenant]
-  agent -->|agent identity token| gw[Gateway: API Management Basic v2, UK West]
-  gw -->|gateway managed identity| models[Model deployments, Global Standard]
+  agent -->|agent identity token| gw[Gateway: API Management Basic v2, UK West, removed nightly]
+  gw -->|gateway managed identity| models[Model deployments, Global Standard, in their own Foundry resource]
   agent -->|agent identity token| mcp[salon-mcp on Container Apps]
   mcp --> tables[(Table Storage: bookings, registry)]
-  mcp --> search[(AI Search: one index per tenant)]
+  mcp --> search[(AI Search: one index per tenant, keyword)]
   mcp --> audit[(Audit table, persistent group)]
-  mcp -->|managed identity| gw
   agent -. traces .-> logs[(Application Insights and Log Analytics, persistent group)]
   gw -. metrics .-> logs
   mcp -. traces .-> logs
@@ -125,9 +165,10 @@ flowchart LR
 | Salon agent | LangGraph graph hosted with `langchain_azure_ai.agents.hosting`, Responses protocol | Official hosting path; the platform supplies endpoint, identity, sessions and scaling | [lg-hosted], [ha] |
 | Conversation state | `FoundryCheckpointSaver` on Foundry's durable state store | Used to "persist LangGraph runtime state in Foundry's durable state store"; needs container protocol 2.0.0 | [lc-azure] |
 | Tool server | FastMCP on Azure Container Apps, Streamable HTTP | Reuses Azure-Samples/python-mcp-demos, which deploys FastMCP to Container Apps with azd | [mcp-demos] |
-| Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` | The only v2 tier creatable near UK South; v2 is required by Foundry's AI Gateway, so both spike paths can use it | [apim-region], [ai-gw] |
+| Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` | The only v2 tier creatable near UK South | [apim-region] |
+| Models | gpt-5.4-nano and gpt-5.4-mini in a Foundry resource that only the gateway's identity can call (D50) | Closes the implicit path from the agent's own project | [ha-perm], [model-regions] |
 | Bookings and audit | Azure Table Storage | Unique partition and row key; atomic batches within a partition; separate add, update and delete permissions | [table-insert], [table-egt], [table-authz] |
-| Knowledge | Azure AI Search, one index per tenant | Microsoft's shared-service multitenant pattern | [search-mt] |
+| Knowledge | Azure AI Search, one index per tenant, keyword search (D45) | Microsoft's shared-service multitenant pattern | [search-mt] |
 | Telemetry | OpenTelemetry to Application Insights | The platform injects the connection string and the protocol libraries emit traces by default | [ha], [lc-traces] |
 
 ### 3.2 Resource groups
@@ -136,25 +177,44 @@ Two groups. Names are proposals for the implementation plan.
 
 | Group | Lifetime | Contents |
 |---|---|---|
-| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity with federated credentials; workload identity for salon-mcp; Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release evidence; container registry; Azure Workbook; the cost budget |
-| Environment (`rg-maf-dev`) | Created by `up`, deleted by `down` | Foundry resources, projects and model deployments; hosted agent; gateway; Container Apps environment and salon-mcp; storage account holding bookings, catalogue and the tenant registry; search service |
+| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity and teardown identity, each with federated credentials; workload identity for salon-mcp; Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release records; container registry; Azure Workbook; the cost budget (D51) |
+| Environment (`rg-maf-dev`) | Created by `up`; kept between working days; deleted only by a full `down` | Two Foundry resources, one for the tenant projects and the hosted agent and one for the model deployments; the gateway, which alone is removed nightly (D37); Container Apps environment and salon-mcp; storage account holding bookings, catalogue and the tenant registry; search service |
 
-Deleting the environment group is safe for the evidence because nothing the evidence depends on
-lives in it (D28). Putting the workload identity in the persistent group means its role
-assignments on persistent resources do not have to propagate again after each rebuild; Table
-Storage role assignments "may take up to 30 minutes to propagate" [table-entra].
+Only the gateway bills for existing, at £0.155085 an hour [prices]. Hosted agent compute is billed
+"during active sessions" [ha], Container Apps scale to zero [aca-scale] and the Free search tier
+costs nothing. So the nightly teardown removes the gateway alone, and agent versions, identities
+and rollback targets stay (D37). A full `down` deletes the whole environment group. That is safe
+for the evidence because nothing the evidence depends on lives in it (D28). The workload identity
+is in the persistent group so that its role assignments on persistent resources do not have to
+propagate again after a full rebuild; Table Storage role assignments "may take up to 30 minutes to
+propagate" [table-entra].
+
+The model deployments have their own Foundry resource because a hosted agent has implicit access to
+model inferencing within its own project [ha-perm]. Models left beside the agent would be reachable
+without the gateway. Only the gateway's managed identity holds a role on the model resource.
+Whether the agent's own resource can run with no chat deployment is tested in spike S1, and where
+the eval judge deployment goes is tested in S6.
 
 ### 3.3 The tenant module
 
-One Bicep module takes `tenant_id` as a parameter and creates, for that tenant: a Foundry project
-(D24); a search index; a partition in the bookings table; a registry entry mapping the tenant's
-agent identity to the tenant; and a token budget in the gateway. Phase 2 is a second invocation
-with a different parameter file.
+One module takes `tenant_id` as a parameter. Phase 2 is a second invocation with a different
+parameter file. It has two parts (D54):
 
-The admin script (D25) is the only caller of the module. It runs the deployment, registers the
+- **Bicep**, for the control plane: the tenant's Foundry project (D24), role assignments, and the
+  tenant's token budget in the gateway.
+- **Script steps**, for the data plane: the search index, the registry entry mapping the tenant's
+  agent identity to the tenant, and the seed of the bookings partition. "There's no Bicep template
+  support for Azure AI Search data plane operations like creating an index" [search-bicep].
+
+The admin script (D25) is the only caller of both parts. It runs the deployment, registers the
 agent identity once the agent exists, and appends one record to the audit table: who ran it, when,
 the tenant, a hash of the parameters and the deployment id. The Azure Activity Log is the second
 witness. Provisioning is therefore traceable to an audit record, not to a pull request.
+
+The identity registry has one source of truth, the `registry` table, written only by the admin
+script (D53). The gateway's copy, the values its policy reads, is generated from the table in the
+same step. `up` and the nightly check compare the two and fail on a difference, so the gateway
+cannot meter one tenant while salon-mcp serves another.
 
 ## 4. Identity flow
 
@@ -165,13 +225,31 @@ model can influence.
 | Hop | Principal | Credential and audience | Check made by the receiver | Where tenant_id comes from | Negative test |
 |---|---|---|---|---|---|
 | 1. Test client to agent | The owner's Entra user | User token for the Foundry endpoint | Foundry requires the endpoint interact permission; Foundry Agent Consumer is "the least-privilege built-in role" and can be assigned at agent scope [ha-perm] | The agent itself: one agent belongs to one tenant | An identity without the role is refused |
-| 2. Pipeline to agent | Pipeline managed identity, by GitHub OIDC | Federated token; no stored secret [gh-oidc] | Same role, same scope | As hop 1 | A workflow outside the two named environments gets no Azure token |
+| 2. Pipeline to agent | Pipeline managed identity, by GitHub OIDC | Federated token; no stored secret [gh-oidc] | Same role, same scope | As hop 1 | A workflow outside the named environments, or from a branch other than `main`, gets no Azure token |
 | 3. Agent to gateway | The agent's own Entra agent identity, "created automatically at deploy time" [ha] | Token for the gateway's app audience | `validate-azure-ad-token` checks tenant directory, audience and that the caller is a registered agent identity [apim-auth] | Looked up from the caller's object id in the registry | No token: 401. Unregistered identity: 403. Direct call to a model: fails (spike S1) |
 | 4. Gateway to model | The gateway's managed identity | Token for Cognitive Services; role Cognitive Services OpenAI User on the model resource [apim-auth] | Azure RBAC on the model resource | Not applicable | The agent identity holds no role on the model resource |
 | 5. Agent to salon-mcp | The agent identity | Token for salon-mcp's app audience | Signature, issuer, tenant directory, audience, expiry, and the agent marker claim `xms_par_app_azp` [mcp-entra], [agent-token] | Looked up from the caller's object id in the registry | Wrong audience: 401. Unregistered identity: 403. A tool call carrying a tenant_id is rejected by the tool schema |
-| 6. salon-mcp to storage and search | salon-mcp's user-assigned managed identity [aca-mi] | Azure RBAC data roles | Table and index scoped roles; an add-and-read-only custom role on the audit table [table-authz] | Passed in code from hop 5's lookup | Updating or deleting an audit row is refused by Azure |
-| 7. salon-mcp to gateway (embeddings) | salon-mcp's managed identity | Token for the gateway's app audience | As hop 3. The gateway accepts a tenant header only from this identity | From hop 5's lookup, asserted by salon-mcp | The same header from an agent identity is ignored |
-| 8. Owner and scripts to Azure | The owner's own Azure login (D20) | Interactive login | Azure RBAC as subscription Owner | Parameter to the admin script | None. See the accepted risk in section 11 |
+| 6. salon-mcp to storage and search | salon-mcp's user-assigned managed identity [aca-mi] | Azure RBAC data roles | Table and index scoped roles; an add-and-read-only custom role on the audit table [table-authz]; read only on the registry | Passed in code from hop 5's lookup | Updating or deleting an audit row is refused by Azure |
+| 7. Owner and scripts to Azure | The owner's own Azure login (D20) | Interactive login | Azure RBAC as subscription Owner | Parameter to the admin script | None. See the accepted risk in section 11 |
+| 8. Nightly teardown to Azure | Teardown managed identity, by GitHub OIDC, in its own environment restricted to `main` | Federated token [gh-oidc] | A custom role: delete on the gateway and the two purge actions [apim-softdel] | Not applicable | Its attempt to delete anything else is refused |
+
+What each identity holds (D42). Exact role definitions are for the implementation plan.
+
+| Identity | Holds | Does not hold |
+|---|---|---|
+| The owner's login, used by sessions and scripts | Subscription Owner (D20) | Nothing is withheld; see section 11 |
+| Pipeline identity | Push to the registry; `agents/write` on the tenant project, which creates a version and moves the selector [ha-perm]; deploy salon-mcp and gateway policies in the environment group; write release records | Purge rights; any role outside the two groups |
+| Teardown identity | Delete on the gateway; the two purge actions at subscription scope [apim-softdel]; read access for the nightly checks | Any right to create or change a resource |
+| Agent identity | Calls to the gateway and salon-mcp; implicit access within its own project [ha-perm] | Any role on the model resource |
+| Gateway managed identity | Cognitive Services OpenAI User on the model resource [apim-auth] | Anything else |
+| salon-mcp workload identity | Read and write on bookings and catalogue; read on the registry; query on the tenant indexes; add and read on the audit table [table-authz] | Update or delete on the audit table; write on the registry |
+| Named test identities | Foundry Agent Consumer on the agent [ha-perm] | Anything else |
+
+**GitHub, not Azure, enforces the promotion gate.** Creating a version and moving the served
+selector need the same permission [ha-perm], so Azure cannot tell a candidate deploy from a
+promotion. Three things separate them: both environments accept only `main`; `dev-promote` has a
+required reviewer; and a check compares the served image with the latest approved release record
+(section 5.9).
 
 Notes on the design:
 
@@ -181,14 +259,19 @@ Notes on the design:
   identity" [ha]. With one project per tenant (D24), the project identity also identifies the
   tenant, which is the fallback if spike S2 cannot obtain agent identity tokens for a custom
   audience.
-- **The identity changes on every rebuild.** Full teardown (D28) deletes the agent, so `up`
-  re-registers the new object id in the registry and in the gateway. The registry is written only
-  by the admin script.
+- **The identity survives the nightly teardown.** Only a full rebuild deletes the agent. `up` then
+  registers the new object id through the admin script (D37).
+- **App registrations.** Hops 3 and 5 each need an Entra app registration, one for the gateway's
+  audience and one for salon-mcp's [apim-auth], [mcp-entra]. The bootstrap creates both (D54).
 - **No tool has a tenant_id parameter.** The model cannot supply what the schema does not accept.
   This is the Phase 1 unit test the intent asks for (section 6, item 5 of the intent).
 - **One salon-mcp serves all tenants.** Its identity can read every tenant's index and partition,
-  so the tenant boundary inside salon-mcp is enforced in code from hop 5's lookup, and proven by
-  tests. This is the pooled model. A silo per tenant is in the optional backlog (Phase 6).
+  so the tenant boundary inside salon-mcp is enforced in code from hop 5's lookup. A local test
+  with two registered identities and two tenants' data shows that one tenant's identity cannot read
+  or write the other's bookings or index (D49). Tests against real infrastructure arrive in
+  Phase 2. This is the pooled model. A silo per tenant is in the optional backlog (Phase 6).
+- **salon-mcp makes no model call in Phase 1.** Keyword retrieval needs no embedding, so the
+  draft's hop from salon-mcp to the gateway, which asserted the tenant in a header, is gone (D45).
 - **Customer authorisation (D33).** A cancellation needs the booking reference and the contact
   detail held on the booking. salon-mcp compares both server-side and refuses on a mismatch. The
   model passes values through; it does not decide.
@@ -211,11 +294,15 @@ A LangGraph graph with four intents: book, cancel, FAQ, out of scope. Reschedule
 | confirm | `interrupt()` showing the normalised booking or cancellation | None |
 | write | Calls `create_booking` or `cancel_booking` after approval | None |
 | retrieve and answer | Calls `search_faq`, answers only from returned passages, and cites their ids | Mid |
+| check citations | Refuses the answer unless every cited id is among the passages returned. No passages, or a failed check, gives "I do not know". Plain code (D46) | None |
 | refuse | Declines out-of-scope requests | Small |
 
 - **Hosting.** The graph is a plain LangGraph package. A separate thin module passes it to
   `ResponsesHostServer` [lg-hosted]. That keeps the intent's rule that the graph can run elsewhere
   if Foundry hosting changes.
+- **Tools are called by code.** The graph's nodes call the tools; the model never chooses a tool.
+  The answering node has no tools at all, which is what the poisoned-passage test in section 5.7
+  demonstrates.
 - **Confirmation.** With the Responses protocol, a pending interrupt surfaces as an
   `mcp_approval_request` item and the client resumes with an `mcp_approval_response` [lg-hosted].
   Microsoft's own sample does this with conversation-scoped checkpointing [sample-hitl].
@@ -225,11 +312,14 @@ A LangGraph graph with four intents: book, cancel, FAQ, out of scope. Reschedule
 - **Model calls.** The chat model's endpoint is set to the gateway, which the LangChain integration
   supports through its `endpoint` setting [lc-models]. Calls are non-streaming inside the graph,
   because the gateway estimates token counts for streamed responses [apim-limit].
-- **Models (proposal 1).** Small: gpt-5.4-nano. Mid: gpt-5.4-mini. Embeddings:
-  text-embedding-3-small. All three are listed for UK South as Global Standard [model-regions],
-  are GA, and retire no earlier than 2027-09-21 [retire]. Microsoft's hosted LangGraph sample
-  deploys gpt-5.4-mini as GlobalStandard [sample-hitl]. Prompts may be processed outside the UK;
-  D29 makes that acceptable and section 11 records it.
+- **Models (D50).** Small: gpt-5.4-nano. Mid: gpt-5.4-mini. Both are version 2026-03-17, listed
+  for UK South as Global Standard [model-regions], GA, and retire on 2027-09-21 [retire].
+  Microsoft's hosted LangGraph sample deploys gpt-5.4-mini as GlobalStandard [sample-hitl]. The
+  versions are pinned and the deployments use `NoAutoUpgrade`: "The model deployment never
+  automatically upgrades. Once the retirement date is reached the model deployment stops working"
+  [model-upgrade]. A change of model is then a deliberate release, not a silent one (D46). There
+  is no embedding model in Phase 1 (D45). Prompts may be processed outside the UK; D29 makes that
+  acceptable and section 11 records it.
 - **Sandbox.** 0.5 vCPU and 1 GiB, the smallest size [ha]. Idle timeout five minutes (the range is
   2 to 60, default 15) [ha], to limit compute billed "during active sessions" [ha].
 
@@ -240,7 +330,7 @@ HTTP with a minimum of zero replicas [aca-scale], so it costs nothing while idle
 
 | Tool | Reads or writes | Notes |
 |---|---|---|
-| `search_faq(query)` | Read | Returns passages with ids, titles and sources for citation |
+| `search_faq(query)` | Read | Keyword search (D45). Returns passages with ids, titles and sources for citation |
 | `get_availability(date, service, stylist?)` | Read | "Any available" when the stylist is omitted |
 | `create_booking(slot, service, stylist, name, contact, idempotency_key)` | Write | The key is derived by the agent from the conversation and the confirmed proposal |
 | `cancel_booking(reference, contact)` | Write | Both values must match the stored booking (D33) |
@@ -258,7 +348,7 @@ Table Storage, authorised only through Entra roles [table-entra].
 |---|---|---|---|---|
 | `bookings` | Environment | tenant_id | `slot|stylist|start`, `ref|reference`, `idem|key` | One row per occupied half-hour slot, one lookup row per booking, one row per idempotency key |
 | `catalogue` | Environment | tenant_id | service, stylist and opening-hours rows | Synthetic seed data |
-| `registry` | Environment | `identity` | caller object id | Maps an agent identity to tenant_id and agent_id |
+| `registry` | Environment | `identity` | caller object id | Maps an agent identity to tenant_id and agent_id. The one source of truth (section 3.3) |
 | `audit` | Persistent | tenant_id | reverse timestamp and a unique id | Append-only record of tool calls and provisioning |
 
 - **Double booking.** The partition and row key "form the primary key, and must be unique within
@@ -272,17 +362,25 @@ Table Storage, authorised only through Entra roles [table-entra].
   delete are separate actions [table-authz]. salon-mcp's role on the audit table holds only read
   and `add/action`, so it cannot change or remove a record. The role is a custom one, which Azure
   supports for table data [table-entra].
+- **Slots reserved for evaluation.** The scripted write tests in section 5.8 book only slots set
+  aside for them and clear those slots before each run, so one run cannot change the result of the
+  next (D53).
 
 ### 5.4 Gateway
 
-Policies live in the repository and are deployed with the environment.
+Policies live in the repository and are deployed with the gateway each time `up` recreates it.
 
 - **Inbound.** Validate the Entra token [apim-auth]; look up the caller's object id in the
   registry values to get tenant_id and agent_id; reject unknown callers.
-- **Budget.** `llm-token-limit` with the counter key set to tenant and agent together, a
-  tokens-per-minute rate and a monthly quota. Exceeding the rate returns 429 and exceeding the
-  quota returns 403 [apim-limit]. Initial figures (proposal 4): 20,000 tokens a minute and
-  2,000,000 tokens a month for the tenant, retuned once token prices are measured.
+- **Budget (D39).** `llm-token-limit` with the counter key set to tenant and agent together:
+  20,000 tokens a minute and a quota of 150,000 tokens with `token-quota-period` set to `Daily`.
+  Exceeding the rate returns 429 and exceeding the quota returns 403 [apim-limit]. The quota is a
+  deploy parameter. A test identity has a quota of 2,000 tokens, so the 403 demonstration costs
+  pence. Section 8 gives the cost of these figures.
+- **Why daily.** The policy "tracks token usage independently at each gateway where it is applied"
+  [apim-limit], and the gateway is purged every night, so a monthly counter is expected to restart
+  with each rebuild. Spike S1 tests that. The monthly figure, 2,000,000 tokens, is therefore
+  reported from the persisted token metrics, with an alert, not enforced.
 - **Metrics.** `llm-emit-token-metric` with four custom dimensions: tenant_id, agent_id,
   environment and model_deployment. That is within the limit of five, and their product stays far
   below 1,000 series [apim-metric]. agent_version, conversation_id, turn_id, graph_node and
@@ -299,38 +397,51 @@ crosses the limit is still served [apim-limit]. Anyone who can edit gateway poli
 gateway's identity call the model on their behalf [apim-mi], which is one more reason policy
 changes go through pull requests.
 
-Whether this gateway is a standalone instance or Foundry's AI Gateway integration is decided by
-spike S1 (D23). The policies above describe the standalone path. On the Foundry path, limits are
-set per project [ai-gw], which D24 makes equivalent to per tenant.
+The gateway is a standalone instance (D47). Foundry's AI Gateway integration gets a desk check in
+spike S1, not a build: it is set up in the portal, and its limits are set per project on the same
+pane [ai-gw], [ai-limits], while this gateway is recreated from the repository every working day.
 
 ### 5.5 Knowledge and retrieval
 
 One index per tenant, named from tenant_id, on the Free tier (D27). The seed script pushes the
-synthetic FAQ documents with precomputed vectors; vector search is available "on all tiers at no
-extra charge" [search-vector]. `search_faq` runs a hybrid query and returns ids for citation. No
-indexer and no semantic ranking are used, because Microsoft says the Free tier "doesn't support
-semantic ranking or managed identities" [search-free]. Free allows three indexes [search-limits],
-which covers Phases 1 and 2.
+synthetic FAQ documents, one FAQ entry to a document, so there is no chunking to tune. `search_faq`
+runs a keyword query and returns ids for citation (D45). No indexer and no semantic ranking are
+used, because Microsoft says the Free tier "doesn't support semantic ranking or managed identities"
+[search-free]. Free allows three indexes [search-limits], which covers Phases 1 and 2.
+
+Vector retrieval is out of Phase 1. It returns in Phase 3 with the document agent, where retrieval
+quality is the story. The AI Engineer's objection is recorded: keyword-only is a quality cut that
+has not been measured.
 
 ### 5.6 Telemetry and the dashboard
 
 - **Tracing.** `AzureAIOpenTelemetryTracer` emits spans that follow the OpenTelemetry GenAI
   conventions for agent steps, model calls and tool calls [lc-traces].
-- **Attribution keys.** A span processor stamps all nine keys from the intent on every span at
-  creation. OpenTelemetry notes that context values are not added to spans "without explicitly
-  adding them" and that several languages provide span processors for this [otel-baggage]. The
-  keys are held in process context, not sent as baggage, because baggage travels in request
-  headers to whatever the code calls [otel-baggage].
+- **Attribution keys (D54).** A span processor stamps all nine keys from the intent on every span
+  the agent emits. OpenTelemetry notes that context values are not added to spans "without
+  explicitly adding them" and that several languages provide span processors for this
+  [otel-baggage]. The keys are held in process context, not sent as baggage, because baggage
+  travels in request headers to whatever the code calls [otel-baggage]. Spans from salon-mcp carry
+  the keys it can know from the caller's identity (tenant_id, agent_id, environment, tool_name),
+  and the gateway's metrics carry four. Everything joins on the trace id.
+- **agent_version is the release.** Release records are keyed by image digest (D38), and the agent
+  stamps the same digest as `agent_version`, so a span identifies a release whatever Foundry's
+  version numbers do after a full rebuild.
 - **One trace across hops.** W3C trace context is passed to salon-mcp and to the gateway.
-- **Content.** Message content recording is off (`enable_content_recording=False`) [lc-traces].
-  Data is synthetic, but the control is shown working.
+- **Content.** Message content recording is off (`enable_content_recording=False`) [lc-traces],
+  in eval sessions too (D46). Data is synthetic, but the control is shown working.
+- **Retention.** The workspace keeps its defaults: "By default, all tables in a Log Analytics
+  workspace retain data for 30 days, except for log tables with 90-day default retention", and
+  "Tables related to Application Insights resources also keep data for 90 days at no charge"
+  [la-retention]. Evidence that must outlast that is in the release record (section 5.9).
 - **Langfuse (D32).** A second OTLP exporter, off by default. When enabled it sends to
   `https://cloud.langfuse.com/api/public/otel` with Basic auth; Langfuse accepts OTLP over HTTP
   and does not support gRPC [langfuse]. Its keys never go in the image or in version environment
-  variables, which Microsoft warns against [ha].
+  variables, which Microsoft warns against [ha]. It is the first thing cut (section 10).
 - **Workbook v0.** An Azure Workbook in the persistent group with four views by tenant and agent:
-  tokens, estimated cost (tokens multiplied by a price parameter), latency percentiles, and eval
-  results written by the pipeline.
+  tokens, estimated cost (tokens multiplied by the prices in section 8), latency percentiles, and
+  eval results. The gate step sends one result record for each run to Application Insights, which
+  is what the eval view reads.
 
 ### 5.7 Runtime guardrail
 
@@ -343,32 +454,71 @@ Two cautions from the same source shape the design. Agent guardrails are in prev
 open with no error" [guardrail], so `up` checks that the policy exists and the pipeline runs the
 negative test on every candidate. Prompt Shields is listed for UK South [cs-regions].
 
+Indirect injection through retrieved content gets one test (D46). A pytest seeds a FAQ passage that
+carries an instruction, asks a question that retrieves it, and asserts that no tool is called and
+that the answer cites only returned ids. It passes by construction, because the answering node has
+no tools (section 5.1); the test keeps that true.
+
 Not covered in Phase 1: screening of tool responses, which is a preview intervention point
-[guardrail-overview]. The FAQ content is seeded by the platform, so indirect injection through it
-is a recorded gap, not a tested control.
+[guardrail-overview]; a labelled attack set with block and false-positive rates, which D46 did not
+adopt. The FAQ content is seeded by the platform, so wider indirect injection remains a recorded
+gap.
 
 ### 5.8 Eval gate
 
-One harness gates promotion (D35): microsoft/ai-agent-evals, pinned by commit SHA. It takes agents
-as `agent-name:version`, compares them with a baseline, and reports "confidence intervals and test
-for statistical significance" [eval-action], [eval-repo]. It is in preview [eval-action].
+Two mechanisms gate promotion, and both must pass (D44).
 
-- **Dataset.** `evals/salon-seed.json`: at least 30 queries, six or more per intent, including
-  out-of-scope requests and prompt-injection attempts.
-- **Evaluators.** Task adherence, intent resolution, tool call accuracy, groundedness for FAQ
-  answers, and one safety evaluator [agent-evals]. Task adherence and intent resolution are marked
-  preview [agent-evals].
-- **Gate (proposal 4).** Promotion is blocked if any pass rate falls below 0.80, if the candidate
-  is significantly worse than the served version on any evaluator, if p95 latency exceeds 20
-  seconds, or if mean tokens per conversation exceed the baseline by more than 25 per cent. The
-  intent already says thresholds are proposed here and retuned after a baseline.
-- **Deterministic rules.** Tenant override, booking validation, the double-booking race,
-  idempotency and confirmation before writes are ordinary pytest tests that run on every pull
-  request. They are not judged by a model.
+**The judged harness** is microsoft/ai-agent-evals, pinned by commit SHA. It takes agents as
+`agent-name:version`, compares them with a baseline, and reports "confidence intervals and test
+for statistical significance" [eval-action], [eval-repo]. It is in preview [eval-action]. Its data
+rows are single queries [eval-action], so it judges the single-turn intents only.
 
-The Action writes a report; it is not documented as failing the job itself. A following step
-reads its output and applies the gate. Spike S6 confirms that this works against a version that is
-not the served one.
+- **Dataset.** `evals/salon-seed.json`: 20 FAQ questions, 20 out-of-scope requests and 10
+  unanswerable questions, which should get "I do not know" (D44, D46). Dates are relative to the
+  run date. Injection attempts are not in this set: the guardrail rejects them "before the agent
+  runs" [guardrail], and the negative test in section 5.7 covers them.
+- **Evaluators.** Task adherence, intent resolution, and groundedness for FAQ answers
+  [agent-evals]. Task adherence and intent resolution are marked preview [agent-evals]. Tool call
+  accuracy is not used: the graph's code makes the tool calls, so there is nothing for it to judge.
+- **Safety.** The draft named a safety evaluator. Risk and safety evaluators are not offered in UK
+  South [eval-regions]. Spike S6 tests whether one runs from a UK South project. If it does not,
+  safety in the gate rests on the guardrail's negative test and the poisoned-passage test (D53).
+- **Judge.** The Action needs a model deployment for its judge [eval-action]. Its model and
+  version are pinned.
+
+**The scripted write tests** cover booking and cancelling, which stop at the confirmation and need
+a second turn the Action cannot send. They are pytest conversations against a session pinned to
+the candidate: approve, decline and tool error, for each of booking and cancelling. Each asserts
+the end state in the bookings table and the audit table. The model is in the loop; nothing is
+judged by a model.
+
+**Gate.** Promotion is blocked if any of these holds:
+
+- a pass rate on a judged intent is below its threshold;
+- the candidate is significantly worse than the served version on any evaluator;
+- p95 latency or mean tokens per conversation, computed from the candidate session's spans, is
+  over its limit;
+- a scripted write test fails.
+
+**Thresholds are measured before they are fixed (D44).** Starting figures are pass rates of 0.80,
+a p95 latency of 20 seconds and tokens no more than 25 per cent above the baseline. Spike S6 runs
+one version twice, and one subtly regressed version, to measure how much the scores move by
+chance. The thresholds are then set from that, and this section is updated to state the smallest
+regression the gate detects. Until then the claim is limited to gross failures.
+
+**A quota refusal is an error, not a regression (D53).** A run that meets a 429 or 403 from the
+gateway stops as failed-to-run and says so.
+
+**The bootstrap release (D38).** On a clean clone there is no served version, so the first run has
+no baseline. It is judged on the absolute thresholds only and recorded as the bootstrap release.
+
+**Deterministic rules.** Tenant override, the two-tenant boundary, booking validation, the
+double-booking race, idempotency, citation checking and confirmation before writes are ordinary
+pytest tests that run on every pull request. They need no model.
+
+The Action writes a report to the job summary and declares no output a script can read
+[eval-action]. Spike S6 finds how the gate step reads the result, and confirms that the Action
+works against a hosted agent version that is not the served one.
 
 ### 5.9 Release pipeline
 
@@ -382,18 +532,42 @@ version without changing what is served [release].
    the selector. Microsoft warns that the default "follows the latest version", so pinning first
    is what stops a deploy from changing traffic [release], [cicd].
 3. **Evaluate.** Create a session pinned to the candidate with a `version_ref` indicator and run a
-   smoke test, then the eval gate and the guardrail negative test [release].
+   smoke test, then the eval gate, the scripted write tests and the guardrail negative test
+   [release].
 4. **Promote** (GitHub environment `dev-promote`, the owner as required reviewer, administrator
    bypass disallowed). The job waits; "a job cannot access environment secrets until one of the
    required reviewers approves it" and one approval is enough [gh-env]. After approval it confirms
    the candidate is still active and the served version unchanged, then moves the selector.
-5. **Evidence.** A release record (commit, pull request, candidate version, image digest, eval run,
-   approver, times) is written to the persistent storage account.
-6. **Rollback.** Move the selector back to the recorded previous version, which is kept.
+5. **Evidence (D43).** A release record (commit, pull request, candidate version, image digest,
+   eval run, thresholds, approver, times) is written to the persistent storage account. The same
+   record, the eval summary and the refusal results are published as assets of a GitHub Release.
+   Immutable releases are switched on for the repository, so "Release assets cannot be modified or
+   deleted", although "You can still edit the title and release notes of a published immutable
+   release" [gh-immutable]. That is why the evidence is an asset and not the notes.
+6. **Rollback.** Move the selector back to the recorded previous version. Versions survive the
+   nightly teardown (D37). After a full rebuild there are none to go back to, which is the case
+   D38 covers: `up` restores the approved image (section 5.10).
+
+Controls around the gate (D42):
+
+- **Environments accept only `main`.** The default is "No restriction: No restriction on which
+  branch or tag can deploy to the environment" [gh-env]. `dev`, `dev-promote` and the teardown
+  environment are each limited to `main`.
+- **Served-image check.** A step at the start of every pipeline run, and again in the nightly
+  workflow, compares the image digest of the served version with the latest approved release
+  record and fails on a difference. It detects a promotion that did not come through the gate.
+- **Pinned Actions.** Every Action is referenced by full commit SHA: "Pinning an action to a
+  full-length commit SHA is currently the only way to use an action as an immutable release"
+  [gh-secure]. The default workflow token is read-only; the promote job alone is given the right
+  to create a Release.
+- **Sessions do not approve (D41).** A token with the `repo` scope can approve a pending
+  deployment [gh-review], and sessions use the owner's login. The rule that a session never
+  approves or rejects a deployment is written in CLAUDE.md and is not enforced.
 
 The owner is both author and approver. GitHub's prevent self-review setting exists so that
 deployments "are always reviewed by more than one person" [gh-env], and with one account it cannot
-be on. The gate proves that promotion needs a deliberate, recorded act, not that two people agreed.
+be on. The gate proves that promotion needs a deliberate, recorded act by the owner's account, not
+that two people agreed.
 
 The pipeline identity is a user-assigned managed identity with federated credentials [gh-oidc]
 scoped to the two environments, so a workflow from a fork or outside those environments receives
@@ -401,22 +575,37 @@ no token. Subscription and tenant identifiers are GitHub variables, not files (D
 
 Limitation: salon-mcp is deployed in the candidate step and is shared by the served agent, so a
 tool change reaches the served version before promotion. Tool schemas are pinned in the eval
-dataset to catch drift. Separate candidate and served revisions of salon-mcp are left to Phase 2.
+dataset to catch drift. Holding a new salon-mcp revision back until promotion was proposed by the
+council and not adopted (D42); it stays in Phase 2.
 
 ### 5.10 Up, down and nightly teardown
 
-- **`up`.** Deploys the environment group from Bicep, runs the admin script for the tenant, seeds
-  the catalogue and the index, deploys the first agent version, and runs a smoke test. It waits
-  for role assignments to take effect before reporting ready.
-- **`down`.** Removes role assignments that point at persistent resources, deletes the environment
-  group, then purges the soft-deleted gateway and Foundry resources. A deleted gateway keeps its
-  name for 48 hours unless purged [apim-softdel], and the same holds for a Foundry resource, whose
-  purge needs Contributor at subscription level [purge].
-- **Nightly workflow.** Runs `down` each evening as a backstop, so a forgotten environment costs
-  at most one day of gateway time.
+- **`up`.** Brings the environment to a working state from wherever it is.
+  - On a working day the environment group exists and only the gateway is missing. `up` creates
+    it with its policies and registry values, waits, and runs a smoke test. Microsoft says a Basic
+    v2 instance will "typically provision within 5-10 minutes" [ai-gw]. The gateway keeps its name,
+    which a purged instance frees for reuse in the same subscription [apim-softdel], so agent
+    versions that hold its address stay valid.
+  - On a full rebuild the group is absent. `up` deploys it from Bicep, runs the admin script for
+    the tenant, seeds the catalogue and the index, and then restores the agent: it redeploys the
+    image digest named in the latest release record and writes a restore record (D38). It never
+    builds the agent from the working tree. With no release record, as on a clean clone, it stops
+    after the infrastructure and says that the first pipeline run will be the bootstrap release.
+  - Either way it waits for role assignments to take effect before reporting ready.
+- **`down`.** By default it deletes and purges the gateway, and the Basic search service if spike
+  S4 fell back to it. A deleted gateway keeps its name for 48 hours unless purged [apim-softdel].
+- **`down`, full.** A separate, explicit form removes role assignments that point at persistent
+  resources, deletes the environment group, then purges the soft-deleted gateway and Foundry
+  resources. The purge of a Foundry resource needs Contributor at subscription level [purge]. It
+  is used for spike S5 and the stranger test.
+- **Nightly workflow.** Runs the default `down` each evening with the teardown identity, checks
+  that no gateway remains, and runs the served-image and registry checks. A forgotten gateway
+  costs at most one day of its hourly price. A failed run fails the workflow, which GitHub reports
+  to the owner.
 
-Both scripts are run by the owner with the owner's login (D20). The nightly workflow uses the
-pipeline identity.
+The scripts are run by the owner with the owner's login (D20). A session may run the default
+`down` without asking; a full `down` waits for the owner's yes, and no session touches the
+persistent group (D40).
 
 ## 6. Phase 0
 
@@ -424,9 +613,9 @@ pipeline identity.
 
 | Deliverable | Acceptance check |
 |---|---|
-| Bootstrap: persistent group, pipeline and workload identities, federated credentials, budget, GitHub environments and branch protection | One command creates them; a workflow in `dev` obtains a token and one outside does not |
-| IaC skeleton: environment Bicep, tenant module, `up`, `down`, nightly teardown | Spike S5 passes |
-| CI with OIDC: pull request checks and the release workflow skeleton | A no-op change travels from pull request to promotion, with approval |
+| Bootstrap: persistent group; pipeline, teardown and workload identities; federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
+| IaC skeleton: environment Bicep, tenant module in its Bicep and script parts, `up`, both forms of `down`, nightly teardown | Spike S5 passes |
+| CI with OIDC: pull request checks and the release workflow skeleton, every Action pinned by full SHA, read-only default token | A no-op change travels from pull request to promotion, with approval |
 | Secrets hook (D36) | A write containing a planted fake key is blocked; normal writes pass |
 | Test-edit hook (D36) | Editing a test while a fix is in progress is blocked |
 | Four skills (D36): tenant isolation, MCP security, telemetry attribution, IaC conventions | Each is a `SKILL.md` under `.claude/skills/` with a description that triggers it [cc-skills] |
@@ -435,7 +624,7 @@ pipeline identity.
 | Seed eval set | Loads in the eval Action in spike S6 |
 | Cloud environment setup script | A cloud session can install dependencies and run the unit tests with no Azure credential |
 | ADR folder | One short record per spike with the result and its evidence |
-| CLAUDE.md architecture and commands sections | Filled from this spec once accepted |
+| CLAUDE.md architecture and commands sections | Architecture filled from this spec once accepted; commands when code exists |
 | GitHub secret scanning and push protection (D18) | Enabled on the repository |
 
 Hooks are not security boundaries. Claude Code's own documentation says to "use the permission
@@ -445,26 +634,9 @@ on the repository is the control that does not depend on the session.
 
 ### 6.2 Spikes
 
-Six spikes, 4.25 days in total, inside the two weeks of Phase 0. A spike that reaches its time-box
-without a go takes its fallback. Time-boxes are not extended.
-
-**S1. Gateway binding (1.5 days).** Can the token budget be made impossible to bypass?
-
-- Method: build both paths in dev and run the same four tests from inside the agent container.
-  Path A is a standalone gateway, with the model deployments in a Foundry resource that only the
-  gateway's identity can call. Path B is Foundry's AI Gateway with per-project limits [ai-gw].
-- Go criteria: (1) a call on the intended path succeeds and a token metric with tenant and agent
-  appears within five minutes; (2) exceeding the rate returns 429 and exceeding the quota returns
-  403 [apim-limit], [ai-limits]; (3) every attempt by the agent identity to reach a model another
-  way fails; (4) the path can be built from the repository with no portal step, since it is rebuilt
-  daily.
-- Decision: the path that passes all four. If both pass, the standalone gateway, because its
-  policies live in the repository and its counter is per tenant and agent (proposal 5).
-- No-go fallback: if test 3 fails on both, keep the gateway for metering and budget on the intended
-  path, add a check that compares model usage with gateway usage, and downgrade the claim from
-  "cannot be bypassed" to "bypass is detected". Network egress rules on the hosted agent, which are
-  in preview [guardrail], are tried within the time-box as a third way to close the path.
-- Can change: sections 3.1, 4 (hops 3 and 4) and 5.4.
+Six spikes, 4.25 days in total, inside the two weeks of Phase 0. They run in the order below: S2
+comes first because S1's first test needs the token S2 finds (D47). A spike that reaches its
+time-box without a go takes its fallback. Time-boxes are not extended.
 
 **S2. Identity at each hop (1 day).** What token reaches salon-mcp and the gateway from a hosted
 agent, and can it be mapped to a tenant?
@@ -477,7 +649,27 @@ agent, and can it be mapped to a tenant?
   from another identity is refused.
 - No-go fallback: the Foundry toolbox connection [toolbox-ha]; failing that, the project managed
   identity, which D24 makes tenant-specific.
-- Can change: section 4, hops 3, 5 and 7.
+- Can change: section 4, hops 3 and 5.
+
+**S1. Gateway binding (1 day).** Can the token budget be made impossible to bypass?
+
+- Method: build the standalone gateway, with the model deployments in a Foundry resource that only
+  the gateway's identity can call, and run the tests from inside the agent container. Foundry's AI
+  Gateway is not built. It gets a desk check: is there an API or Bicep route to enable it and set
+  its limits [ai-gw], [ai-limits]?
+- Go criteria: (1) a call on the intended path succeeds and a token metric with tenant and agent
+  appears within five minutes; (2) exceeding the rate returns 429 and exceeding the quota returns
+  403 [apim-limit]; (3) every attempt by the agent identity to reach a model another way fails,
+  including through its own project; (4) the path can be built from the repository with no portal
+  step, since it is rebuilt every working day.
+- Also recorded, not a go criterion: whether the quota counter survives a delete, purge and
+  recreate of the gateway. D39 assumes it does not.
+- No-go fallback: if test 3 fails, keep the gateway for metering and budget on the intended path,
+  add a check that compares model usage with gateway usage, and downgrade the claim from "cannot be
+  bypassed" to "bypass is detected". Network egress rules on the hosted agent, which are in preview
+  [guardrail], are tried within the time-box as another way to close the path. Foundry's AI
+  Gateway is built only if test 3 fails and the desk check found a route with no portal step.
+- Can change: sections 3.1, 3.2, 4 (hops 3 and 4) and 5.4.
 
 **S3. Durable checkpointer (0.5 day).** Does a paused confirmation survive losing the container?
 
@@ -491,32 +683,42 @@ agent, and can it be mapped to a tenant?
 **S4. Search on the Free tier with roles only (0.25 day).**
 
 - Method: create a Free service with keys disabled, grant salon-mcp's identity the reader role on
-  one index [search-rbac], and run a hybrid query.
+  one index [search-rbac], and run a keyword query.
 - Go criteria: the query succeeds with an Entra token, a key is refused, and the service can be
   deleted and recreated the same day.
-- No-go fallback: Basic created on demand at £0.0762 an hour [prices].
-- Can change: sections 5.5 and 8.
+- No-go fallback: Basic at £0.076229 an hour [prices], removed nightly with the gateway (D37).
+- Can change: sections 5.5, 5.10 and 8.
 
-**S5. Full teardown and rebuild (0.5 day).**
+**S5. Teardown and rebuild (0.5 day).**
 
-- Method: run `down` then `up` twice in succession, unattended.
-- Go criteria: both rebuilds reach a passing smoke test within 30 minutes; names are reusable after
-  purge; the environment group is empty after `down`; traces and audit records from before the
-  teardown are still queryable.
-- No-go fallback: tear down only the gateway. That reopens D28, so it goes back to the owner.
+- Method: run the default `down` then `up` twice in succession, unattended. Then run the full
+  `down` and `up` once.
+- Go criteria: each gateway cycle reaches a passing smoke test within 20 minutes with the agent
+  version and identity unchanged; the full rebuild reaches one within 30 minutes and serves the
+  digest in the latest release record; names are reusable after purge; the environment group is
+  empty after the full `down`; traces and audit records from before it are still queryable.
+- No-go fallback: if the full rebuild cannot restore the approved image unattended, it becomes a
+  documented manual procedure and the stranger test runs through the pipeline only. That goes back
+  to the owner.
 - Can change: sections 3.2 and 5.10.
 
-**S6. Eval Action against a candidate (0.5 day).**
+**S6. Eval gate against a candidate (1 day).**
 
-- Method: deploy two versions, one with a deliberately damaged prompt, and run the Action with the
-  candidate against the served version as baseline. Run it with the account layout S1 chose,
-  because the Action needs a judge model deployment in the project [eval-action], and on path A
-  that would put a deployment back within the agent's implicit reach.
-- Go criteria: the damaged version is flagged and the job fails; the good version passes; a
-  version that is not served can be evaluated.
+- Method: deploy three versions: a sound one, one with a deliberately damaged prompt, and one with
+  a subtle regression. Run the Action with each candidate against the sound version as baseline,
+  and run the sound version against itself. Use the resource layout S1 chose, because the Action
+  needs a judge model deployment in the project [eval-action], and that could put a deployment
+  back within the agent's implicit reach. Run the scripted write tests against a pinned candidate
+  session. Try one safety evaluator.
+- Go criteria: a version that is not served can be evaluated; the damaged version is flagged and
+  the job fails; the sound version passes; the gate step can read the result from something other
+  than the page a person reads; the scripted tests reach the confirmation and resume it.
+- Measured and written into section 5.8 and D39: how far scores move between two runs of the same
+  version; whether the subtle regression is detected; the tokens in one gate run; whether a safety
+  evaluator runs from UK South.
 - No-go fallback: a DeepEval-only gate in pytest (D35), with its judge model called through the
-  gateway.
-- Can change: sections 5.8 and 5.9.
+  gateway. The scripted write tests stand either way.
+- Can change: sections 5.4, 5.8 and 5.9.
 
 ## 7. Preview components and fallbacks
 
@@ -524,8 +726,8 @@ agent, and can it be mapped to a tenant?
 |---|---|---|---|
 | ai-agent-evals Action | `v3-beta`; the docs page is marked preview [eval-repo], [eval-action] | Commit SHA | DeepEval-only gate (D35) |
 | Agent guardrails on hosted agents | "Agent guardrails are in preview" [guardrail-overview] | Policy id in IaC | Guardrail on the model deployment, which applies to all Foundry models sold by Azure [guardrail-overview] |
-| Task adherence and intent resolution evaluators | Marked preview [agent-evals] | Evaluator names in the dataset | Tool call accuracy and custom graders |
-| Foundry AI Gateway (only if S1 chooses it) | Preview: Microsoft's API Management page heads it "AI gateway in Microsoft Foundry (preview)" [apim-aigw]. Set up through the portal [ai-gw] | None available | Standalone gateway |
+| Task adherence and intent resolution evaluators | Marked preview [agent-evals] | Evaluator names in the dataset | Groundedness and custom graders |
+| Foundry AI Gateway (desk check; built only if S1 needs it) | Preview: Microsoft's API Management page heads it "AI gateway in Microsoft Foundry (preview)" [apim-aigw]. Set up through the portal [ai-gw] | None available | Standalone gateway |
 | Hosted agent network egress controls (only if S1 uses them) | Preview [guardrail] | Rule set in IaC | Path without them |
 | azd `azure.ai.agents` extension | Beta: the official sample requires `>=1.0.0-beta.9` [sample-hitl] | Exact version | Deploy through the REST API [deploy] |
 | Azure MCP server (harness only) | `3.0.0-beta.49` (D10) | Exact version | az and azd |
@@ -535,37 +737,73 @@ Container Apps, AI Search, GitHub environments.
 
 ## 8. Cost estimate
 
-Ceiling: £40 a month for the whole dev environment (D21).
+Ceiling: £40 a month for the whole dev environment (D21). Every figure below is a rate from
+[prices]; the tables show what a rate costs at a given level of use.
 
-| Item | Billing basis | Price | Source |
+| Item | Billing basis | Rate |
+|---|---|---|
+| Gateway, API Management Basic v2 | Each hour it exists | £0.155085 an hour |
+| Container registry, Basic | Each day | £0.125741 a day |
+| Hosted agent compute | CPU and memory "during active sessions" [ha] | £0.082524 a vCPU hour and £0.009797 a memory hour; £0.051059 an active session hour at 0.5 vCPU and 1 GiB |
+| gpt-5.4-nano, Global | Per token | £0.150949 per million input, £0.015095 cached input, £0.943432 output |
+| gpt-5.4-mini, Global | Per token | £0.566059 per million input, £0.056606 cached input, £3.396355 output |
+| Logs | Per GB ingested | £0 for the first 5 GB a month, then £2.173667 a GB; "Includes 31 days of analytics retention at no extra cost" [la-cost], then £0.098117 a GB a month |
+| Table storage | Per GB and per operation | £0.034869 a GB a month; £0.000272 per 10,000 operations |
+| Container Apps | Per request and per second of use; scales to zero [aca-scale] | £0.3019 per million requests; compute within the free grant at this volume |
+| Search, Free tier | None | £0. Basic, the S4 fallback, is £0.076229 an hour |
+
+**Gateway.** It is the only item that costs money for existing.
+
+| Hours it exists in a month | Cost |
+|---|---|
+| 60 | £9.31 |
+| 135 | £20.94 |
+| 190 | £29.47 |
+| 730 (never removed) | £113.21 |
+
+**Tokens.** The mix column assumes four input tokens to one output token.
+
+| Tokens in a month | All gpt-5.4-nano, 4:1 mix | All gpt-5.4-mini, 4:1 mix | Worst case: all gpt-5.4-mini output |
 |---|---|---|---|
-| Gateway, API Management Basic v2 | Per hour it exists | £0.1551 an hour | [prices] |
-| Search, Free tier | None | £0 | [prices] |
-| Container registry, Basic | Per day | £0.1257 a day, about £3.82 a month | [prices] |
-| Container Apps | Per request and per second of use; scales to zero | £0.3019 per million requests; compute within the free tier at this volume | [prices], [aca-scale] |
-| Table and blob storage | Per GB and per operation | Not priced; a few megabytes | Not verified |
-| Logs | Per GB ingested | Not priced | Not verified |
-| Hosted agent compute | CPU and memory during active sessions | Not published on the page fetched | Not verified |
-| Model tokens | Per token | Not retrieved | Not verified |
+| 1,000,000 | £0.31 | £1.13 | £3.40 |
+| 2,000,000 (the reported monthly figure) | £0.62 | £2.26 | £6.79 |
+| 4,500,000 (the daily quota reached on 30 days) | £1.39 | £5.09 | £15.28 |
 
-| Hours the environment is up in a month | Gateway | Fixed | Known total |
-|---|---|---|---|
-| 60 | £9.31 | £3.82 | £13 |
-| 135 | £20.94 | £3.82 | £25 |
-| 200 | £31.02 | £3.82 | £35 |
-| 730 (never torn down) | £113.22 | £3.82 | £117 |
+The daily quota of 150,000 tokens (D39) caps a runaway day at £0.51. It is a ceiling, not a
+forecast. One gate run is estimated at about 161,000 tokens, about £0.18 at the gpt-5.4-mini mix;
+that estimate is not measured, and it is larger than the daily quota. Spike S6 measures it, and if
+two gate runs do not fit in a day the owner chooses the quota again with the measured figure.
 
-- The known total leaves at least £5 at 200 hours for the four unpriced items. Week 1 of Phase 0
-  reads the actual figures from Cost Management, and the owner is told if they exceed that margin.
-- A forgotten environment costs at most £3.72, one day of gateway time, because of the nightly
-  teardown.
-- Spike S1 runs two gateways for up to a day and a half: about £5.60 extra, once.
-- If S4 falls back to Basic search, add £0.0762 an hour and the 200 hours become about 135.
+**Agent compute.**
+
+| Active session hours in a month | Cost |
+|---|---|
+| 10 | £0.51 |
+| 30 | £1.53 |
+| 60 | £3.06 |
+
+**Together.** Assumptions: sessions are active for a quarter of the hours the gateway exists;
+2,000,000 tokens at the gpt-5.4-mini mix; logs under 5 GB; storage in pence.
+
+| Hours the gateway exists | Gateway | Registry | Agent compute | Tokens | Total |
+|---|---|---|---|---|---|
+| 60 | £9.31 | £3.82 | £0.77 | £2.26 | £16.16 |
+| 135 | £20.94 | £3.82 | £1.74 | £2.26 | £28.76 |
+| 190 | £29.47 | £3.82 | £2.45 | £2.26 | £38.00 |
+
+- On these assumptions about 190 hours a month is the limit, roughly nine hours on each of 21
+  working days.
+- A forgotten gateway costs at most £3.72, one day, because of the nightly teardown.
+- If S4 falls back to Basic search, add £0.076229 for each hour the gateway exists: £10.29 at 135
+  hours, which brings the limit down to about 135 hours.
 - If S3 falls back to Cosmos DB serverless, add pence.
+- Spike S1 now builds one gateway, not two, so the draft's one-off £5.60 does not arise.
 - A Cost Management budget of £40 covers both resource groups, with alerts at 50, 80 and 100 per
   cent of actual cost and at 100 per cent of forecast [budget]. Budgets notify only: "none of your
-  resources are affected and your consumption isn't stopped" [budget-bicep]. The teardown is what
-  limits spend.
+  resources are affected and your consumption isn't stopped" [budget-bicep]. The nightly teardown
+  and the token quota are what limit spend.
+- Week 1 of Phase 0 reads the actual figures from Cost Management and the owner is told if they
+  differ from this table.
 - D21 in practice: before a dev write that would otherwise auto-run, the session adds the month's
   cost so far, the remaining-month cost of what is running, and the cost of the write. If the sum
   is over £40, it asks.
@@ -579,12 +817,15 @@ what remains afterwards.
 
 | Control | Works | Refuses | Evidence |
 |---|---|---|---|
-| Pipeline identity | A job in `dev` obtains an Azure token | A job outside the named environments does not | Workflow runs |
+| Pipeline identity | A job in `dev` on `main` obtains an Azure token | A job outside the named environments, or from another branch, does not | Workflow runs |
+| Teardown identity | The nightly job deletes and purges the gateway | Its attempt to delete anything else is refused | Workflow run and a refused request |
 | Protected main | A pull request with green checks merges | A direct push is rejected | Repository settings and a rejected push |
 | Approval gate | An approved job proceeds | An unapproved job waits; a rejected one stops | Environment approval record |
+| Pinned Actions | Workflows run with every Action at a full SHA and a read-only default token | A workflow that references an Action by tag fails a lint check | Workflow files and the check |
 | Secrets hook and scanning | Normal writes pass | A planted fake key is blocked by the hook and by push protection | Hook log |
 | Test-edit hook | Tests can be edited in a test task | A test edit during a fix is blocked | Hook log |
-| Rebuild from nothing | `up` reaches a passing smoke test | After `down`, no billable resource remains | Spike S5 record |
+| Gateway cycle | The default `down` then `up` reaches a passing smoke test with the agent version unchanged | After `down`, no gateway remains | Spike S5 record |
+| Rebuild from nothing | `up` after a full `down` serves the digest in the latest release record | After a full `down`, no billable resource remains in the environment group | Spike S5 record |
 | Budget | The budget and its alerts exist | Not applicable: budgets do not block | Budget definition in IaC |
 | Spikes | Each has a result | Each no-go has taken its fallback | Six ADRs |
 
@@ -596,7 +837,7 @@ council has reviewed the change.
 | Control | Works | Refuses | Evidence |
 |---|---|---|---|
 | Caller authorisation | A named test identity gets a reply | An identity without the role is refused | Trace and a refused request |
-| Tenant from identity | The agent books for its own tenant | A tool call carrying a tenant_id fails the schema; an unregistered identity gets 403 | Unit tests and audit rows |
+| Tenant from identity | The agent books for its own tenant | A tool call carrying a tenant_id fails the schema; an unregistered identity gets 403; in the local two-tenant test, one tenant's identity cannot read or write the other's data | Unit tests and audit rows |
 | Confirmation before writes | Approval leads to one booking | Declining leaves no booking; the decline is audited | Audit rows |
 | Durable confirmation | Approval after the container is lost still completes | Not applicable | Spike S3 repeated in Phase 1 |
 | Booking rules in code | A valid slot is accepted | A slot outside hours or in the past is refused whatever the model says | Unit tests |
@@ -604,40 +845,56 @@ council has reviewed the change.
 | Idempotency | A repeated request returns the same booking | No second booking is created | Unit test |
 | Customer authorisation | Reference and contact together cancel the booking | A wrong contact detail is refused | Audit rows |
 | Append-only audit | salon-mcp adds a record | Its update and delete attempts are refused by Azure | Refused requests |
-| Gateway budget | A call is served and metered by tenant and agent | Over the rate: 429. Over the quota: 403. A direct model call fails | Metrics and refused requests |
-| Attribution | A trace shows all nine keys on every span | A query for spans missing any key returns none | Saved query |
-| Grounded answers | An FAQ answer cites ids that exist in the tenant's index | A question with no source is answered with "I do not know" | Eval results |
-| Guardrail | A normal prompt gets HTTP 200 | An attack prompt gets HTTP 400 `content_filter` | Pipeline run |
-| Eval gate | A sound candidate passes | A deliberately damaged candidate fails and cannot be promoted | Two pipeline runs |
+| Gateway budget | A call is served and metered by tenant and agent | Over the rate: 429. Over the quota: 403, shown with the low-quota test identity. A direct model call fails | Metrics and refused requests |
+| Attribution | A trace shows all nine keys on every span the agent emits, and salon-mcp spans join it on the trace id | A query for agent spans missing any key returns none | Saved query |
+| Grounded answers | An FAQ answer cites only ids that were returned | A question with no source gets "I do not know"; an answer citing an id that was not returned is refused | Unit test and eval results |
+| Guardrail | A normal prompt gets HTTP 200 | An attack prompt gets HTTP 400 `content_filter`; a poisoned passage leads to no tool call | Pipeline run and unit test |
+| Eval gate | A sound candidate passes | A deliberately damaged candidate fails and cannot be promoted; a run that meets a quota refusal stops as an error, not a regression | Two pipeline runs |
+| Write-path gate | The scripted approve, decline and tool-error conversations pass on a sound candidate | A candidate that writes without confirmation fails | Pipeline run |
 | Approval and promotion | An approved candidate becomes the served version | A rejected one leaves the served version unchanged | Release records |
-| Traceability | A release record names the pull request, commit, eval run and approver | Not applicable | Release record |
-| Evidence survives teardown | After `down`, traces, audit rows and release records are still readable | The environment group is empty | Queries run after `down` |
+| Served-image check | The served digest equals the latest approved record | A version served outside the gate is detected and the check fails | Workflow run |
+| Traceability | A release record and its GitHub Release name the pull request, commit, eval run and approver | Not applicable | Release record and Release |
+| Evidence survives teardown | After a full `down`, traces, audit rows and release records are still readable, and the Releases are public | The environment group is empty | Queries run after `down` |
 | Dashboard | The Workbook shows tokens, cost, latency and eval results by tenant and agent | Not applicable | Screenshot in the pull request |
-| Stranger test | From a clean clone, one setup command and one pipeline run produce a served agent | Not applicable | The owner's run from a fresh checkout |
+| Stranger test | From a clean clone, one setup command and one pipeline run produce a served agent, recorded as the bootstrap release | Not applicable | The owner's run from a fresh checkout |
 
 Phase 1 is complete when all rows pass and the council gate is passed. The Langfuse export is
 outside these criteria (D32).
 
-## 10. Schedule and cut order
+## 10. Schedule and cut orders
 
 | Phase | Week | Work |
 |---|---|---|
-| 0 | 1 | Bootstrap, IaC skeleton, CI with OIDC, repository protections, spikes S1 and S2, cost measurement |
+| 0 | 1 | Bootstrap, IaC skeleton, CI with OIDC, repository protections, spikes S2 then S1, cost measurement |
 | 0 | 2 | Spikes S3 to S6, hooks, skills, verifier, REVIEW.md, seed eval set, ADRs, spec update, council gate |
-| 1 | 1 | salon-mcp, data model, tenant module, agent graph running locally with tests |
+| 1 | 1 | salon-mcp, data model, tenant module, agent graph running locally with tests, including the two-tenant test |
 | 1 | 2 | Hosted agent, gateway policies, telemetry and attribution, guardrail |
-| 1 | 3 | Eval gate, release pipeline, Workbook, exit demonstrations, council gate |
+| 1 | 3 | Eval gate and scripted write tests, release pipeline, Workbook, exit demonstrations, council gate |
 
-If a time-box is at risk, scope is cut in this order and the date holds (D30):
+If a time-box is at risk, scope is cut in the order below and the date holds (D30, D48).
 
-1. Workbook reduced to tokens and latency only.
-2. Vector half of retrieval; keyword search only.
+Phase 0:
+
+1. The cloud environment setup script.
+2. The verifier subagent.
+3. The telemetry attribution and IaC conventions skills. Tenant isolation and MCP security stay.
+4. The test-edit hook.
+
+Cut items move to after Phase 1; D36 otherwise stands. Never cut in Phase 0: the bootstrap, CI with
+OIDC, repository protections, the secrets hook and scanning, the seed eval set, and spikes S1, S2,
+S5 and S6.
+
+Phase 1:
+
+1. The Langfuse exporter, which is already outside the exit criteria.
+2. Workbook reduced to tokens and latency only.
 3. The second model role; one model for every node.
 4. The cost-per-conversation and latency conditions in the eval gate.
 5. Stylist choice; "any available" only.
 
-Never cut, because they are the story: tenant from identity, confirmation before writes, the
-gateway negative test, the eval gate, the approval gate, the audit log.
+Never cut in Phase 1, because they are the story: tenant from identity, confirmation before writes,
+the gateway negative test, the eval gate with its write-path tests, the approval gate, the audit
+log.
 
 ## 11. Risks and accepted risks
 
@@ -647,46 +904,53 @@ Accepted by the owner:
   nothing mechanical stops it writing anywhere the owner can. With dev as the only environment the
   exposure is the dev environment and the persistent group, including the evidence. The council's
   first debate in review 02 stays open.
+- **A session can approve a promotion (D41).** Sessions use the owner's GitHub login, and a token
+  with the `repo` scope can approve a pending deployment [gh-review]. The rule against it is
+  written, not enforced. The gate records an act by the owner's account, not proof that a person
+  made it. The served-image check does not catch this, because such a promotion goes through the
+  pipeline.
 - **One approver (D19).** Author and approver are the same person.
 - **Global Standard processing (D34).** Prompts may be processed outside the UK. Acceptable only
   because data is synthetic (D29). The path for real data is regional or provisioned deployment.
 - **Provisioning outside the pull request trail (D25).**
+- **Keyword-only retrieval (D45).** A quality cut that has not been measured.
 
 Design risks:
 
 | Risk | Mitigation |
 |---|---|
 | The gateway budget can be bypassed | Spike S1, with a stated downgrade of the claim if it cannot be closed |
+| The quota counter restarts when the gateway is purged | A daily quota, and a monthly figure reported from persisted metrics with an alert (D39) |
+| The daily quota is smaller than one gate run | Spike S6 measures it; the quota is a deploy parameter; the owner chooses again with the figure (D39) |
+| The eval gate detects only gross regressions | Stated as the claim until S6 measures the noise (D44) |
+| No safety evaluator in UK South | S6 tests it; otherwise the guardrail and poisoned-passage tests carry safety in the gate (D53) |
+| The eval judge deployment reopens the bypass | S6 runs after S1 with the same resource layout |
 | Preview components change or disappear | Section 7 names a pin and a fallback for each |
-| Public endpoints for the agent, the gateway and salon-mcp | Entra tokens on every hop; private networking recorded as out of scope |
-| Daily rebuild is slow or flaky, and role assignments lag | Spike S5 sets a 30 minute limit; workload identity kept in the persistent group |
-| One salon-mcp identity can read every tenant's data | Boundary enforced in code and tested; cross-tenant tests arrive in Phase 2 |
-| The eval judge deployment reopens the bypass | S6 runs after S1 with the same account layout |
-| Unpriced items exceed the margin | Measured in week 1; the owner is told |
-| Indirect prompt injection through retrieved content | Recorded gap; content is platform-seeded in Phase 1 |
-| Tool changes reach the served agent before promotion | Tool schemas pinned in the eval set; separate revisions in Phase 2 |
-| Six spikes overrun | Fixed time-boxes with fallbacks; two weeks for Phase 0 |
+| Public endpoints for the agent, the gateway and salon-mcp | Entra tokens on every hop; private networking recorded as out of scope (D52) |
+| Evidence expires: workflow logs at 90 days, log tables at 30 or 90 | Release records in the persistent storage account and as GitHub Releases (D43) |
+| Promotion is separated from a candidate deploy only by GitHub | Environments limited to `main`, a required reviewer, and the served-image check (D42) |
+| A full rebuild cannot restore the approved image | Spike S5 proves it; the fallback goes back to the owner |
+| Role assignments lag after a rebuild | Workload identity kept in the persistent group; `up` waits before reporting ready |
+| One salon-mcp identity can read every tenant's data | Boundary enforced in code, with a local two-tenant test; tests on real infrastructure arrive in Phase 2 |
+| Indirect prompt injection through retrieved content | One poisoned-passage test; wider coverage is a recorded gap |
+| Tool and policy changes reach the served agent before promotion | Tool schemas pinned in the eval set; separate revisions in Phase 2 |
+| Six spikes overrun | Fixed time-boxes with fallbacks; a Phase 0 cut order (D48) |
 
 ## 12. Open questions
 
-For the owner, at the spec gate:
+For the owner: none are open from this gate. Two come back with measurements:
 
-1. Are gpt-5.4-nano, gpt-5.4-mini and text-embedding-3-small the models?
-2. May the persistent group also hold the audit table, the container registry, the salon-mcp
-   workload identity, the Workbook and the budget, extending D28?
-3. Is a direct call from the agent to salon-mcp the default, with a toolbox connection as fallback?
-4. Are the initial figures acceptable: 20,000 tokens a minute, 2,000,000 tokens a month, pass
-   rates of 0.80, p95 latency of 20 seconds?
-5. If both gateway paths pass S1, is the standalone gateway the choice?
-6. Should CLAUDE.md's Azure writes rule be updated for D20 and D21?
-7. Is it accepted that salon-mcp has a public endpoint in Phase 1?
+- the daily token quota, once spike S6 has measured a gate run (D39);
+- the search tier, once spike S4 has run (D27).
 
 For the implementation plan:
 
 - The MCP client library used inside the graph.
-- The Bicep module layout and the exact custom role definitions.
-- How the pipeline reads the eval Action's output to apply the gate.
-- The catalogue and FAQ seed content.
+- The Bicep module layout, the script steps of the tenant module, and the exact custom role
+  definitions for each identity in section 4.
+- How the gate step reads the eval result, as found by spike S6.
+- The names and flags of the two forms of `down`.
+- The catalogue and FAQ seed content, and the 50 rows of the eval set.
 
 ## 13. References
 
@@ -726,14 +990,16 @@ All opened on 2026-10-03.
 | [ai-gw] | https://learn.microsoft.com/en-us/azure/foundry/configuration/enable-ai-api-management-gateway-portal |
 | [ai-limits] | https://learn.microsoft.com/azure/foundry/control-plane/how-to-enforce-limits-models |
 | [model-regions] | https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability |
+| [model-upgrade] | https://learn.microsoft.com/azure/foundry/openai/how-to/working-with-models#model-deployment-upgrade-configuration |
 | [retire] | https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule |
 | [search-limits] | https://learn.microsoft.com/azure/search/search-limits-quotas-capacity |
 | [search-roles] | https://learn.microsoft.com/azure/search/search-security-enable-roles |
 | [search-keyless] | https://learn.microsoft.com/azure/search/search-security-rbac-client-code |
+| [search-index] | https://learn.microsoft.com/azure/search/search-how-to-create-search-index |
 | [search-rbac] | https://learn.microsoft.com/azure/search/search-security-rbac |
 | [search-mt] | https://learn.microsoft.com/azure/search/search-modeling-multitenant-saas-applications |
-| [search-vector] | https://learn.microsoft.com/azure/search/vector-search-overview |
 | [search-free] | https://learn.microsoft.com/azure/search/search-try-for-free |
+| [search-bicep] | https://learn.microsoft.com/azure/search/search-get-started-bicep |
 | [table-authz] | https://learn.microsoft.com/rest/api/storageservices/authorize-with-azure-active-directory |
 | [table-entra] | https://learn.microsoft.com/azure/storage/tables/authorize-access-azure-active-directory |
 | [table-insert] | https://learn.microsoft.com/rest/api/storageservices/insert-entity |
@@ -743,15 +1009,23 @@ All opened on 2026-10-03.
 | [purge] | https://learn.microsoft.com/azure/ai-services/recover-purge-resources |
 | [gh-env] | https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments |
 | [gh-oidc] | https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect |
+| [gh-review] | https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2022-11-28#review-pending-deployments-for-a-workflow-run |
+| [gh-immutable] | https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/immutable-releases |
+| [gh-retention] | https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository |
+| [gh-secure] | https://docs.github.com/en/actions/reference/security/secure-use |
 | [eval-action] | https://learn.microsoft.com/azure/foundry/how-to/evaluation-github-action |
 | [eval-repo] | https://github.com/microsoft/ai-agent-evals |
+| [eval-regions] | https://learn.microsoft.com/azure/foundry/concepts/evaluation-regions-limits-virtual-network |
 | [agent-evals] | https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/agent-evaluators |
 | [otel-baggage] | https://opentelemetry.io/docs/concepts/signals/baggage/ |
 | [langfuse] | https://langfuse.com/integrations/native/opentelemetry |
+| [la-cost] | https://learn.microsoft.com/azure/azure-monitor/logs/cost-logs |
+| [la-retention] | https://learn.microsoft.com/azure/azure-monitor/logs/data-retention-configure |
 | [budget] | https://learn.microsoft.com/azure/cost-management-billing/costs/tutorial-acm-create-budgets |
 | [budget-bicep] | https://learn.microsoft.com/azure/cost-management-billing/costs/quick-create-budget-bicep |
 | [cc-hooks] | https://code.claude.com/docs/en/hooks |
 | [cc-perms] | https://code.claude.com/docs/en/permissions |
 | [cc-skills] | https://code.claude.com/docs/en/skills |
 | [cc-agents] | https://code.claude.com/docs/en/sub-agents |
-| [prices] | Azure Retail Prices API, queried through the Azure MCP pricing tool, GBP, UK South and UK West |
+| [prices] | Azure Retail Prices API, https://prices.azure.com/api/retail/prices, GBP, UK South and UK West |
+| [prices-api] | https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices |
