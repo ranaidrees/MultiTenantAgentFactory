@@ -15,7 +15,9 @@ Each stage commits one artifact that the next stage reads. The commit history is
 
 Phases 0 and 1 share `docs/spec-phase-0-1.md` and `docs/implementation-plan-phase-0-1.md`.
 A stage starts only when the previous artifact is committed and accepted by the owner.
-At each gate run `/council <artifact path>`; the review is written to `docs/council/NN-<stage>-review.md`.
+At each gate run `/council <artifact path>` on a new artifact; the review is written to
+`docs/council/NN-<stage>-review.md`. A revised artifact gets one deep single-reviewer pass with a
+currency audit instead of a council rerun (D70), written to `docs/council/NN-<stage>-principal-review.md`.
 
 ## Rules
 

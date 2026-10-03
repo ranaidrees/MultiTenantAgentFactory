@@ -32,6 +32,7 @@ Files, commits and reviews, as links.
 
 What to repeat on a new project, and what to change in the prompt or the harness next time.
 If the same lesson appears twice, move it into CLAUDE.md.
+Name one harness mechanism that was not needed this session, or say none (D70).
 
 ## 7. Next session
 
