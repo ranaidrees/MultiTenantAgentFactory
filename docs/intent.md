@@ -1,11 +1,12 @@
 # Intent: Multi-tenant AgentOps platform on Azure with Agent Factory
 
-Author: Rana Naveed Idrees. Status: accepted (revision 9). Owner decisions D1 to D17 recorded in section 14. Date: 2026-10-03.
+Author: Rana Naveed Idrees. Status: accepted (revision 10). Owner decisions D1 to D18 recorded in section 14. Date: 2026-10-03.
 Stage: 1 of 6 (Plan). Location: docs/intent.md. Next artifact: docs/spec-phase-0-1.md (Phases 0 and 1).
 Council record: docs/council/01-intent-review.md (revision 4) and docs/council/02-intent-review.md (revision 7)
 Revision 7 records the Stage 0 harness interview (D7 to D12) and amends the text those decisions contradict; each amendment is marked with its decision number.
 Revision 8 records the owner's response to council review 02 (D13 to D17). The review's other questions remain open for the spec.
 Revision 9 applies three cleanup corrections approved by the owner: the isolation test phases in section 13, question 4 removed (answered by D6) and question 8 pointed at D11.
+Revision 10 records D18 (the repository is to be made public).
 
 ## 1. Problem
 
@@ -184,6 +185,7 @@ Full report: docs/research.md.
 - **D15**: The council has six members. An AI Engineer is added to cover agent design, retrieval, evaluation and runtime guardrails, the gap the smoke test exposed, and each member's brief now names the expertise it brings to this project and goal. The cost of a council run (about 1.6 million subagent tokens with five members) is accepted.
 - **D16**: Repository visibility is under review (question 3 of review 02). The owner prefers private but will make the repository public if the GitHub plan restricts what the project needs. Facts: on GitHub Free, environments exist only on public repositories; on Free, Pro and Team, required reviewers and wait timers exist only on public repositories; protected branches on private repositories need GitHub Pro. Sources: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments and https://docs.github.com/en/get-started/learning-about-github/githubs-plans. Until the owner decides, the repository stays private and the spec must not assume a required-reviewer gate.
 - **D17**: Two harness additions. Each session writes a journal entry in docs/journal/ from a template, and starts from the handoff in the previous entry. A /cleanup skill reports broken, stale, duplicated, unused or unnecessary files and changes nothing without the owner's approval; it runs before the final commit of each stage. No document is added outside the artifact chain, council reviews, journal and harness configuration unless the owner asks.
+- **D18**: Settles D16 and answers question 3 of review 02. The owner decided to make the repository public, so that environments, required reviewers, protected branches and GitHub's free security scanning are available to the project. The repository and its commit messages were checked first for secrets and personal identifiers and none were found. The owner makes the visibility change in GitHub settings, because a session is not permitted to publish a repository; until then the repository is still private. Azure subscription and tenant identifiers are to be kept in GitHub variables or secrets, not in files.
 
 ### Needed before later phases (council's proposed default in brackets)
 5. Tenant provisioning through PR and approval, or admin action plus audit log? [PR and approval, via IaC]
