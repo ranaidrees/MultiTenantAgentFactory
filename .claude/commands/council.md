@@ -1,5 +1,5 @@
 ---
-description: Run the five-member review council on a delivery artifact and write docs/council/NN-<stage>-review.md
+description: Run the six-member review council on a delivery artifact and write docs/council/NN-<stage>-review.md
 argument-hint: <artifact path, for example docs/spec-phase-0-1.md>
 ---
 
@@ -8,8 +8,12 @@ Run the review council on the artifact at: $ARGUMENTS
 Adapted from Karpathy's LLM Council (https://github.com/karpathy/llm-council: independent first
 opinions, anonymised peer review, chairman synthesis) and the llm-council Claude Code skill
 (https://github.com/tenfoldmarc/llm-council-skill: parallel subagents, neutral framing, reviews
-relabelled A to E). Here the members are fixed roles rather than different models, and peer
+relabelled by letter). Here the members are fixed roles rather than different models, and peer
 ranking is replaced by one rebuttal round.
+
+The members are `council-architect`, `council-security`, `council-ai-engineer`,
+`council-simplifier`, `council-hiring-manager` and `council-contrarian`. The chair is
+`council-chair`.
 
 You are the orchestrator. You do not review the artifact, summarise it for the members or give an
 opinion on it. Follow the steps in order.
@@ -34,9 +38,8 @@ opinion on it. Follow the steps in order.
 
 ## 2. Round one: independent reviews
 
-Start all five members in parallel, in a single message, and wait for all five:
-`council-architect`, `council-security`, `council-simplifier`, `council-hiring-manager`,
-`council-contrarian`. Give each exactly this brief, with the placeholders filled in and nothing added:
+Start all six members in parallel, in a single message, and wait for all six. Give each exactly
+this brief, with the placeholders filled in and nothing added:
 
 > Review the artifact at `<path>` (<revision>). Upstream artifacts: <list>. Read them yourself.
 > Work alone; other members are reviewing in parallel and you will not see their work yet.
@@ -58,18 +61,18 @@ without it and tell the chair which member is missing.
 
 ## 3. Anonymise
 
-Remove anything that names a role or lens from each review. Label the reviews Review A to Review E
+Remove anything that names a role or lens from each review. Label the reviews Review A to Review F
 in an order unrelated to the member list above, and save each one unedited in the working folder as
-`review-A.md` to `review-E.md`. Keep the label-to-member mapping to yourself until step 5.
+`review-A.md` to `review-F.md`. Keep the label-to-member mapping to yourself until step 5.
 
 ## 4. Round two: one anonymised rebuttal
 
-Start the five members again in parallel, in a single message, and wait for all five. Each member
-is told which file is its own review and reads the other four, with this brief:
+Start the six members again in parallel, in a single message, and wait for all six. Each member is
+told which file is its own review and reads the other five, with this brief:
 
-> Rebuttal round for `<path>` (<revision>). The five round-one reviews are files in
-> `<working folder>`. Your own review is `review-<label>.md`. The other four, identities removed,
-> are `review-<label>.md`, and so on. Read all five. Return only this, in at most 300 words:
+> Rebuttal round for `<path>` (<revision>). The round-one reviews are files in
+> `<working folder>`. Your own review is `review-<label>.md`. The others, identities removed, are
+> `review-<label>.md`, and so on. Read them all. Return only this, in at most 300 words:
 >
 > **Final verdict**: Accept, Accept with changes, or Reject. Say whether it changed and why.
 >
@@ -78,7 +81,7 @@ is told which file is its own review and reads the other four, with this brief:
 > **Disputed**: points from other reviews that you reject, by review label, with your reason and
 > evidence.
 >
-> **Top three issues overall**: across all five reviews, ranked by impact.
+> **Top three issues overall**: across all the reviews, ranked by impact.
 >
 > **Missed by everyone**: at most one item, or "nothing".
 
@@ -86,9 +89,9 @@ There is exactly one rebuttal round. Do not run another.
 
 ## 5. Chair
 
-Save the label-to-member mapping and the five rebuttals, in full and unedited, as `rebuttals.md` in
-the working folder. Start `council-chair` with: the artifact path and revision, the output path,
-today's date, the working folder (five review files and `rebuttals.md`), and the name of any
+Save the label-to-member mapping and the rebuttals, in full and unedited, as `rebuttals.md` in the
+working folder. Start `council-chair` with: the artifact path and revision, the output path,
+today's date, the working folder (the review files and `rebuttals.md`), and the name of any
 missing member. The chair writes the output file. The chair never adds scope.
 
 ## 6. Report

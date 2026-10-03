@@ -79,6 +79,12 @@ to an interviewer and turned into a template. That request created this journal.
 12. Checked the council's two headline findings against the sources directly.
 13. Added this journal, its template and a CLAUDE.md rule. Adjusted `/council` from what the smoke
     test showed. Committed.
+14. Created the private repository after a second gh device login, and pushed.
+15. The owner answered the council: prod writes and Azure MCP writes need approval every time, the
+    repository stays private unless the plan gets in the way, and the council's cost is accepted.
+16. Installed azd with winget. Added a sixth council member and named each member's expertise.
+17. Created the `/cleanup` skill and ran it once, report only. Recorded D13 to D17 as intent
+    revision 8. Committed and pushed.
 
 ## 3. Owner decisions
 
@@ -91,6 +97,11 @@ to an interviewer and turned into a template. That request created this journal.
 | Data store and questions 5 to 7 | Left open for the spec | intent D11 |
 | Repository and author | Private, under github.com/ranaidrees; commits as Rana Idrees (noreply) | intent D12 |
 | Session journal | One entry per session from a template | CLAUDE.md, this folder |
+| Council questions 1 and 2 | Prod writes and Azure MCP writes always need the owner's yes; dev stays auto-run when low risk; written rule only | intent D13, D14 |
+| Council expertise | Add an AI Engineer; name what each member brings | intent D15 |
+| Repository visibility | Prefers private; willing to go public if the plan restricts what is needed; not yet decided | intent D16 |
+| Clutter | A `/cleanup` skill that reports first and changes only with approval | intent D17 |
+| Install azd | Yes (1.35.0 installed). Docker not installed | this entry |
 
 ## 4. Surprises and how they were handled
 
@@ -117,16 +128,22 @@ to an interviewer and turned into a template. That request created this journal.
   minutes (five reviews, five rebuttals, one chair).
 - **The council challenged the session's own decisions.** All five members asked for D9, D10 and
   D12 to change. The chair recorded this as owner questions and changed nothing.
+- **The GitHub plan decides which gates exist.** On GitHub Free a private repository has no
+  environments and no protected branches, and required reviewers need a public repository on Free,
+  Pro and Team. The token could not read the account's plan, so the owner must confirm it.
+- **The council had a gap in its own expertise.** No member owned agents, retrieval, evaluation and
+  guardrails; runtime prompt-injection defence surfaced only in a rebuttal. Fixed by D15.
 
 ## 5. What was produced
 
 - [CLAUDE.md](../../CLAUDE.md): process rules only.
-- [.claude/agents/](../../.claude/agents/): five council members and the chair.
+- [.claude/agents/](../../.claude/agents/): six council members and the chair.
 - [.claude/commands/council.md](../../.claude/commands/council.md): the `/council` command.
+- [.claude/skills/cleanup/SKILL.md](../../.claude/skills/cleanup/SKILL.md): the `/cleanup` skill.
 - [.mcp.json](../../.mcp.json): Microsoft Learn MCP (3 tools), Context7 (2 tools), Azure MCP
   pinned to 3.0.0-beta.49 (70 tools). All three verified to list their tools.
 - [.gitignore](../../.gitignore) for Python, Node and Azure.
-- [docs/intent.md](../intent.md) revision 7 with D7 to D12.
+- [docs/intent.md](../intent.md) revision 8 with D7 to D17.
 - [docs/council/02-intent-review.md](../council/02-intent-review.md): verdict Accept with changes,
   twelve owner questions.
 - This journal and [TEMPLATE.md](TEMPLATE.md).
@@ -153,18 +170,19 @@ to an interviewer and turned into a template. That request created this journal.
 Owner, before the next session:
 - This repository pushes through the active gh account. If a push is refused, run
   `gh auth switch --user ranaidrees`.
-- Answer the twelve owner questions in [02-intent-review.md](../council/02-intent-review.md).
-  Questions 1 to 3 ask you to reconsider D9, D10 and D12; the Contrarian's verdict becomes Reject
-  if D9 and D12 stay as written.
-- Decide whether to install `azd` and Docker (both missing), and whether to upgrade npm (9.2.0)
-  and gh (2.76.2).
+- Decide repository visibility (D16). Check your plan at github.com/settings/billing first.
+- Answer questions 4 to 12 in [02-intent-review.md](../council/02-intent-review.md), or leave them
+  for the spec's clarifications section. Questions 1 and 2 are answered by D13 and D14.
+- Decide whether to install Docker (missing), and whether to upgrade npm (9.2.0) and gh (2.76.2).
 - Start a new session and approve the three project MCP servers when prompted. Check `/mcp` shows
-  `azure` connected, and that `/council` and the `council-*` agents are listed.
+  `azure` connected, and that `/council`, `/cleanup` and the seven `council-*` agents are listed.
 - Optional: end the two stale `azmcp.exe` processes and fix or remove the user-level `azure` MCP
   entry, which duplicates the project one.
 
 Next session (Stage 2, Design):
-- If the owner's answers change the intent, record them as revision 8 first and commit.
+- If the owner's answers change the intent, record them as revision 9 first and commit.
+- The first `/cleanup` pass was report only and nothing was applied. Run it again and apply what
+  the owner approves.
 - Write `docs/spec-phase-0-1.md`. Its clarifications section must cover D11 (data store and the
   intent's questions 5 to 7) and the council's unopposed corrections (debate 7 in review 02).
 - Run `/council docs/spec-phase-0-1.md`, this time with the registered agents.

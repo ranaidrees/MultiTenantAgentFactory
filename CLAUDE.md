@@ -24,11 +24,16 @@ At each gate run `/council <artifact path>`; the review is written to `docs/coun
 - Ask, do not assume. If something is unclear, ask the owner before acting.
 - Evidence with URLs: every design claim cites an official document or sample.
 - Reuse before build: check official docs and samples first (Microsoft Learn MCP, Context7, web search).
-- Azure writes (intent D9): before any command or MCP tool call that creates, changes or deletes
-  Azure resources, state the estimated added monthly cost and the blast radius. Proceed without
-  asking only if all of these hold: up to £20 a month; touches only this project's resource groups;
-  deletes nothing; no role, policy or Entra change outside the bootstrap. Otherwise stop and wait
-  for the owner's yes. Releases still go through GitHub Actions with environment approval.
+- Azure writes (intent D9, D13, D14): before any command or MCP tool call that creates, changes or
+  deletes Azure resources, state the estimated added monthly cost and the blast radius. Then:
+  - Prod, through any tool: always wait for the owner's yes.
+  - Azure MCP write, in any environment: always wait for the owner's yes.
+  - az or azd in dev: proceed without asking only if all of these hold: up to £20 a month; touches
+    only this project's resource groups; deletes nothing; no role, policy or Entra change outside
+    the bootstrap. Otherwise wait for the owner's yes.
+  Releases still go through GitHub Actions.
+- No clutter: add a document only if it is a chain artifact, a council review, a journal entry,
+  harness configuration, or the owner asks for it. Run `/cleanup` before the final commit of a stage.
 - Session journal: start by reading section 7 of the latest entry in `docs/journal/`. Before the
   final commit, write `docs/journal/NN-<stage>.md` from `docs/journal/TEMPLATE.md`.
 - Writing style: plain British English, no em dashes.

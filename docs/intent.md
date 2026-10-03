@@ -1,9 +1,10 @@
 # Intent: Multi-tenant AgentOps platform on Azure with Agent Factory
 
-Author: Rana Naveed Idrees. Status: accepted (revision 7). Owner decisions D1 to D12 recorded in section 14. Date: 2026-10-03.
+Author: Rana Naveed Idrees. Status: accepted (revision 8). Owner decisions D1 to D17 recorded in section 14. Date: 2026-10-03.
 Stage: 1 of 6 (Plan). Location: docs/intent.md. Next artifact: docs/spec-phase-0-1.md (Phases 0 and 1).
-Council record: docs/council/01-intent-review.md
+Council record: docs/council/01-intent-review.md (revision 4) and docs/council/02-intent-review.md (revision 7)
 Revision 7 records the Stage 0 harness interview (D7 to D12) and amends the text those decisions contradict; each amendment is marked with its decision number.
+Revision 8 records the owner's response to council review 02 (D13 to D17). The review's other questions remain open for the spec.
 
 ## 1. Problem
 
@@ -106,13 +107,13 @@ Follows Anthropic's AI-Native SDLC playbook: each stage commits one artifact the
 | Deploy | PR with review findings | REVIEW.md passes, human approval |
 | Maintain | new intent.md from breached control bands | Triage by owner |
 
-**Council**: at every gate, five reviewer subagents debate the artifact independently, then a chair synthesises a verdict with dissent recorded in docs/council/. Members: Platform Architect, Security and Compliance, Simplifier, Hiring Manager, Contrarian. Pattern reused from Karpathy's LLM Council as adapted for Claude Code subagents (see section 12).
+**Council**: at every gate, six reviewer subagents review the artifact independently and give one anonymised rebuttal, then a chair synthesises a verdict with dissent recorded in docs/council/. Members: Platform Architect, Security and Compliance, AI Engineer (added by D15), Simplifier, Hiring Manager, Contrarian. Pattern reused from Karpathy's LLM Council as adapted for Claude Code subagents (see section 12).
 
-**Tooling**: Claude Code on the web for intent to PR; Claude Code Desktop for one-time Azure bootstrap and live debugging; GitHub Actions is the standard release path. Sessions may also run Azure write commands under the assessment rule in D9.
+**Tooling**: Claude Code on the web for intent to PR; Claude Code Desktop for one-time Azure bootstrap and live debugging; GitHub Actions is the standard release path. Sessions may also run Azure write commands under the assessment rule in D9, as amended by D13 and D14.
 
 **Before Build can start (Phase 0 deliverables)**: CLAUDE.md, REVIEW.md, skills (tenant isolation, MCP security, telemetry attribution, IaC conventions), hooks (Azure write assessment per D9, block test edits during fixes, block secrets), council and verifier subagents, .mcp.json (Azure MCP, Microsoft Learn MCP, Context7; Playwright deferred to Phase 4, D10), cloud environment setup script, seed eval set, ADR folder.
 
-**Delivered in Stage 0 (harness session, 2026-10-03)**: git repository and .gitignore, CLAUDE.md (process rules only), council subagents and the /council command, .mcp.json. The remaining Phase 0 deliverables are specified in docs/spec-phase-0-1.md.
+**Delivered in Stage 0 (harness session, 2026-10-03)**: git repository and .gitignore, CLAUDE.md (process rules only), council subagents and the /council command, .mcp.json, the session journal in docs/journal/ and the /cleanup skill (D17). The remaining Phase 0 deliverables are specified in docs/spec-phase-0-1.md.
 
 ## 11. Research findings (summary)
 
@@ -175,6 +176,13 @@ Full report: docs/research.md.
 - **D10**: .mcp.json holds Microsoft Learn MCP, Context7 (added to the original list) and Azure MCP, pinned to @azure/mcp 3.0.0-beta.49 with write tools enabled under D9. Playwright is deferred to Phase 4.
 - **D11**: Left open for the spec, to be raised in its clarifications section: the bookings and conversation store (Cosmos DB serverless or PostgreSQL), and questions 5, 6 and 7 below. The note in docs/research.md that the store was "later revised to PostgreSQL in spec" refers to a spec that does not exist and has no standing.
 - **D12**: The repository is private under github.com/ranaidrees. Commits are authored as Rana Idrees with the account's GitHub noreply address.
+
+### Decided after council review 02 (2026-10-03)
+- **D13**: Amends D9 and answers question 1 of docs/council/02-intent-review.md. Sessions may still write to prod, but every prod write, through any tool, waits for the owner's yes after the cost and blast radius assessment. az and azd writes in dev keep the D9 low-risk rule and run without asking when it is met. The council's proposal (dev only, enforced by Azure RBAC) was not adopted.
+- **D14**: Amends D10 and answers question 2 of review 02. Azure MCP write tools stay enabled, but every Azure MCP write, in any environment, waits for the owner's yes. This is a written rule in CLAUDE.md only; the owner chose not to add a Claude Code permission rule that would force a prompt.
+- **D15**: The council has six members. An AI Engineer is added to cover agent design, retrieval, evaluation and runtime guardrails, the gap the smoke test exposed, and each member's brief now names the expertise it brings to this project and goal. The cost of a council run (about 1.6 million subagent tokens with five members) is accepted.
+- **D16**: Repository visibility is under review (question 3 of review 02). The owner prefers private but will make the repository public if the GitHub plan restricts what the project needs. Facts: on GitHub Free, environments exist only on public repositories; on Free, Pro and Team, required reviewers and wait timers exist only on public repositories; protected branches on private repositories need GitHub Pro. Sources: https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments and https://docs.github.com/en/get-started/learning-about-github/githubs-plans. Until the owner decides, the repository stays private and the spec must not assume a required-reviewer gate.
+- **D17**: Two harness additions. Each session writes a journal entry in docs/journal/ from a template, and starts from the handoff in the previous entry. A /cleanup skill reports broken, stale, duplicated, unused or unnecessary files and changes nothing without the owner's approval; it runs before the final commit of each stage. No document is added outside the artifact chain, council reviews, journal and harness configuration unless the owner asks.
 
 ### Needed before later phases (council's proposed default in brackets)
 4. Claude plan type: Pro/Max or Team? (Affects secret handling in cloud sessions) Answered by D6.
