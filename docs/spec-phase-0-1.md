@@ -1,7 +1,7 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp) and again for D72 to D79 (the owner's decisions after council review 05 of the plan). Date: 2026-10-04.
-Stage: 2 of 6 (Design). Reads: docs/intent.md revision 15 (decisions D1 to D79).
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan) and for D80 (the gateway also fronts the agent endpoint, gated by spike S1). Date: 2026-10-04.
+Stage: 2 of 6 (Design). Reads: docs/intent.md revision 16 (decisions D1 to D80).
 Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
 
@@ -138,6 +138,8 @@ the Azure Retail Prices API at the gate and are in section 8. What remains:
 | Whether role-based access works on the Search Free tier | Three pages disagree [search-roles], [search-keyless], [search-index] | Spike S4 |
 | Whether the gate step can read the Action's result | The Action's code writes only to the job summary, but it targets the version through the project evaluation API, which returns results a script can read [eval-action-code], [eval-targets] | Spike S6 runs both routes (D56) |
 | Whether a trace evaluation of the scripted conversations runs from a UK South project | Batch evaluations are listed for UK South; trace evaluation is not named by region [eval-regions], [foundry-mcp-tools] | Withdrawn for Phase 1 (D77); the Phase 2 eval twin spike |
+| Whether API Management can front a hosted agent's own endpoint as a pass-through: a token for the Foundry audience validated at the gateway and forwarded unchanged, the approval round trip, and a session pinned by `version_ref` | Microsoft documents its gateway as a proxy for agents that run outside Foundry [custom-agent]; no page describes it in front of a hosted agent's endpoint | Spike S1, test 6, and the approval round trip in spike S3 (D80); a no-go drops the agent path to Phase 2 |
+| Which key joins an agent turn to the gateway request that carried it, and how an evaluation run's calls appear to the agent | The pages do not say whether the platform carries the gateway's trace context or a stamped header into the container | Recorded in spikes S1 and S6 (D80); without a key the agent path is governed at the gateway and no detection is claimed |
 | Whether two `FixedRatio` rules split traffic | Two pages say "Traffic splitting between versions isn't supported" [ha], [manage]; a preview page documents a 90/10 canary [azd-prod] | Five minutes in spike S5 |
 | The price of the evaluations meter and of Defender for AI Services after its trial | The pricing pages render no figure | Not a planning assumption; Defender is disabled before its trial ends (D66) |
 
@@ -174,6 +176,7 @@ Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md.
 | Question 5: trace evaluation | Withdrawn for Phase 1; an eval twin version in Phase 2 | D77 |
 | Questions 6 and 7: identities and the injection control | Foundry User at project scope for the pipeline; no search delete for teardown; structural control plus the poisoned-passage test | D78 |
 | Questions 9 and 10: supply chain and the harness | Base image by digest; scanner deferred; plugin auto-update off; mutation checks wired in Phase 0 and measured in Phase 1 | D79 |
+| The owner's question of 2026-10-04, raised with a colleague's proposed architecture: should a caller reach the central gateway first, so that all AI traffic crosses it? | Yes: the gateway also fronts the agent endpoint as a pass-through, gated by spike S1; if its test fails or the time-box is at risk, the agent path becomes a recorded Phase 2 item | D80 |
 
 ## 3. Architecture
 
@@ -193,7 +196,7 @@ flowchart TB
   langfuse["Langfuse Cloud, optional, off by default"]
   owner -->|"pull requests; approvals in the browser"| gh
   owner -->|"up, down and the admin script, own login"| dev
-  tester -->|"Entra token, Foundry Agent Consumer"| dev
+  tester -->|"Entra token, through the gateway; Foundry Agent Consumer"| dev
   gh -->|"OIDC: pipeline identity and teardown identity"| dev
   gh -->|"release records and eval results"| persist
   dev -->|"traces, metrics, audit rows"| persist
@@ -206,16 +209,21 @@ flowchart TB
 tier can be created in UK South at present, a limit Microsoft marks as temporary [apim-region]
 (D22). The agent endpoint, the gateway and salon-mcp all have public endpoints protected by Entra
 tokens (D52); private networking is out of scope and is recorded as a gap in section 11. Every AI
-call the agent makes, to a model or to a tool, crosses the gateway (D71): it is the one governed
-boundary, and salon-mcp keeps its own checks behind it.
+call crosses the gateway: a caller's call to the agent (D80), and the agent's calls to a model or
+to a tool (D71). It is the one governed boundary, and Foundry and salon-mcp keep their own checks
+behind it. Microsoft's guidance for agents asks for the same: "Route all AI traffic through a
+managed gateway to create a unified control point for policy enforcement" [caf-agents]. The agent
+path is gated by spike S1 (section 6.2); if its test fails, callers reach the Foundry endpoint
+directly, as they did before D80. The numbers on the arrows give the order of one turn.
 
 ```mermaid
 flowchart LR
-  caller[Test client or pipeline] -->|Entra token| agent[Salon agent: Foundry hosted agent, one project per tenant]
-  agent -->|agent identity token| gw[Gateway: API Management Basic v2, UK West, removed nightly]
-  gw -->|gateway managed identity| models[Model deployments, Global Standard, in their own Foundry resource]
-  agent -->|agent identity token, salon-mcp audience| gw
-  gw -->|same token forwarded, tool rate limit| mcp[salon-mcp on Container Apps]
+  caller[Test client or pipeline] -->|"1: Entra token, Foundry audience"| gw[Gateway: API Management Basic v2, UK West, removed nightly]
+  gw -->|"2: same token forwarded, caller rate limit"| agent[Salon agent: Foundry hosted agent, one project per tenant]
+  agent -->|"3: agent identity token, model call"| gw
+  gw -->|"4: gateway managed identity"| models[Model deployments, Global Standard, in their own Foundry resource]
+  agent -->|"5: agent identity token, salon-mcp audience"| gw
+  gw -->|"6: same token forwarded, tool rate limit"| mcp[salon-mcp on Container Apps]
   mcp --> tables[(Table Storage: bookings, registry)]
   mcp --> search[(AI Search: one index per tenant, keyword)]
   mcp --> audit[(Audit table, persistent group)]
@@ -229,7 +237,7 @@ flowchart LR
 | Salon agent | LangGraph graph hosted with `langchain_azure_ai.agents.hosting`, Responses protocol | Official hosting path; the platform supplies endpoint, identity, sessions and scaling | [lg-hosted], [ha] |
 | Conversation state | `FoundryCheckpointSaver` on Foundry's durable state store | Used to "persist LangGraph runtime state in Foundry's durable state store"; needs container protocol 2.0.0 | [lc-azure] |
 | Tool server | FastMCP on Azure Container Apps, Streamable HTTP, reached through the gateway's MCP pass-through (D71) | Reuses Azure-Samples/python-mcp-demos, which deploys FastMCP to Container Apps with azd; API Management exposes an existing MCP server on Basic v2 | [mcp-demos], [apim-mcp] |
-| Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` on the model path, and `validate-azure-ad-token`, `rate-limit-by-key` and `emit-metric` on the tool path (D71) | The only v2 tier creatable near UK South; the MCP pass-through is generally available on it | [apim-region], [apim-mcp], [apim-rate] |
+| Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` on the model path, and `validate-azure-ad-token`, `rate-limit-by-key` and `emit-metric` on the tool path (D71) and on the agent path (D80) | The only v2 tier creatable near UK South; the MCP pass-through is generally available on it; the AI gateway is described as governing models, tools and agents | [apim-region], [apim-mcp], [apim-rate], [apim-aigw] |
 | Models | gpt-5.4-nano and gpt-5.4-mini in a Foundry resource that only the gateway's identity can call (D50) | Closes the implicit path from the agent's own project | [ha-perm], [model-regions] |
 | Bookings and audit | Azure Table Storage | Unique partition and row key; atomic batches within a partition; separate add, update and delete permissions | [table-insert], [table-egt], [table-authz] |
 | Knowledge | Azure AI Search, one index per tenant, keyword search (D45) | Microsoft's shared-service multitenant pattern | [search-mt] |
@@ -247,7 +255,7 @@ Two groups. Names are proposals for the implementation plan.
 ```mermaid
 flowchart LR
   subgraph persist["rg-maf-persist, UK South, never torn down"]
-    ids["Pipeline, teardown and workload identities"]
+    ids["Pipeline, teardown, workload and gateway identities"]
     law["Log Analytics and Application Insights"]
     evid["Storage: audit table, eval results, release records"]
     acr["Container registry"]
@@ -266,6 +274,7 @@ flowchart LR
     end
   end
   acr -->|"image pull by the project identity"| fagent
+  gw -->|"caller token forwarded, caller rate limit"| fagent
   fagent -->|"agent identity token"| gw
   gw -->|"gateway managed identity"| fmodel
   gw -->|"token forwarded, tool rate limit"| aca
@@ -274,7 +283,7 @@ flowchart LR
   aca -->|"append only"| evid
   fagent -.->|"traces"| law
   aca -.->|"traces"| law
-  gw -.->|"token metrics"| law
+  gw -.->|"token, tool and agent-call metrics"| law
 ```
 
 Only the gateway bills for existing, at £0.155085 an hour [prices]. Hosted agent compute is billed
@@ -301,7 +310,8 @@ parameter file. It has two parts (D54):
 - **Bicep**, for the control plane: the tenant's Foundry project (D24), role assignments, and the
   tenant's token budget in the gateway.
 - **Script steps**, for the data plane: the search index, the registry entry mapping the tenant's
-  agent identity to the tenant, and the seed of the bookings partition. "There's no Bicep template
+  agent identity to the tenant, the registry entries for the identities allowed to call that agent
+  (D80), and the seed of the bookings partition. "There's no Bicep template
   support for Azure AI Search data plane operations like creating an index" [search-bicep].
 
 The admin script (D25) is the only caller of both parts. It runs the deployment, registers the
@@ -340,7 +350,7 @@ with quotations is section 5 of docs/council/04-spec-phase-0-1-principal-review.
 | Conversation and session | Responses conversation id; per-session sandbox bound to a version | Caller identity scopes the session | None | `gen_ai.conversation.id`, `turn_id` | 5.1 |
 | Conversation state | `FoundryCheckpointSaver` on the durable state store (preview, section 7) | The store resolves the user from the platform call id | None | None | 3.1, 5.1 |
 | salon-mcp | A downstream service reached through a project connection with `agentic-identity` whose target is the gateway's MCP endpoint (D71), or by a direct call (S2) | App registration for its audience; the container app's workload identity | Deployed by the candidate job | `gen_ai.tool.name`; salon-mcp spans; gateway tool metrics | 5.2, 5.4, 6.2 |
-| Gateway | None in Foundry; one API Management instance with an LLM API and an MCP server entity (D71) | The gateway's managed identity; the two app registrations | Policies in the repository, deployed by `up` | Token metrics and tool metrics | 5.4 |
+| Gateway | None in Foundry; one API Management instance with an LLM API, an MCP server entity (D71) and an HTTP API in front of the agent endpoint (D80) | The gateway's managed identity; the two app registrations | Policies in the repository, deployed by `up` | Token metrics, tool metrics and agent-call metrics | 5.4 |
 | Knowledge base | None; an AI Search index the MCP server queries, so the tenant boundary stays in one place | Workload identity with query rights | None | None | 5.5 |
 | Attribution keys | None; span attributes, five on the GenAI names (D59) | None | None | Read by the agent views | 5.6 |
 | Release | A version plus a selector move | None | Immutable GitHub Release with the record as an asset; release attestation | Eval result record | 5.9 |
@@ -360,37 +370,41 @@ model can influence.
 ```mermaid
 sequenceDiagram
   participant T as Test identity or pipeline
+  participant G as Gateway, UK West
   participant F as Foundry agent endpoint
   participant A as Agent container, agent identity
-  participant G as Gateway, UK West
   participant M as Model resource
   participant S as salon-mcp
   participant D as Table Storage and AI Search
-  T->>F: Entra user token or federated token, audience Foundry
+  T->>G: Entra user token or federated token, audience Foundry
+  G->>G: validate-azure-ad-token, registry lookup, rate-limit-by-key, emit-metric
+  G->>F: same token forwarded
   F->>F: endpoints/interact/action at agent scope, else 403
   F->>A: request with conversation and session ids
   A->>G: token for the gateway audience
   G->>G: validate-azure-ad-token, registry lookup, llm-token-limit
   G->>M: gateway managed identity, Cognitive Services OpenAI User
   M-->>G: completion
-  G-->>A: completion; token metric emitted
+  G-->>A: completion, token metric emitted
   A->>G: token for the salon-mcp audience, MCP call
   G->>G: validate-azure-ad-token, registry lookup, rate-limit-by-key, emit-metric
   G->>S: same token forwarded
   S->>S: signature, issuer, tenant, audience, agent marker claim, registry lookup
-  S->>D: workload identity with data roles; tenant_id from the lookup
+  S->>D: workload identity with data roles, tenant_id from the lookup
   D-->>S: result
   S->>S: append one audit row
   S-->>G: tool result
   G-->>A: tool result
   A-->>F: response
-  F-->>T: response
+  F-->>G: response
+  G-->>T: response
 ```
 
 | Hop | Principal | Credential and audience | Check made by the receiver | Where tenant_id comes from | Negative test |
 |---|---|---|---|---|---|
-| 1. Test client to agent | The owner's Entra user | User token for the Foundry endpoint | Foundry requires the endpoint interact permission; Foundry Agent Consumer is "the least-privilege built-in role" and can be assigned at agent scope [ha-perm] | The agent itself: one agent belongs to one tenant | An identity without the role is refused |
-| 2. Pipeline to agent | Pipeline managed identity, by GitHub OIDC | Federated token; no stored secret [gh-oidc] | Same role, same scope | As hop 1 | A workflow outside the named environments, or from a branch other than `main`, gets no Azure token |
+| 1a. Caller to the gateway's agent route (D80) | The owner's Entra user or a named test identity | User token for the Foundry audience, sent to the gateway | `validate-azure-ad-token` for that audience [apim-validate]; the caller's object id looked up in the registry, where its row must name the agent on the route; `rate-limit-by-key` for each caller [apim-rate]; `emit-metric` [apim-emit]; the token is forwarded unchanged, which spike S1 checks | Looked up from the caller's object id in the registry | No token: 401. Unregistered caller: 403. Over the caller rate: 429 |
+| 1b. Gateway to agent | The caller, in the forwarded token | The same token | Foundry requires the endpoint interact permission; Foundry Agent Consumer is "the least-privilege built-in role" and can be assigned at agent scope [ha-perm]. Foundry "identifies each caller from their Microsoft Entra token" [isolate], so sessions stay scoped to the caller | The agent itself: one agent belongs to one tenant | An identity without the role is refused by Foundry. A call at the agent's own address with a valid token and the role succeeds: bypass is detected by the reconciliation check (section 5.4), not closed |
+| 2. Pipeline to agent | Pipeline managed identity, by GitHub OIDC | Federated token; no stored secret [gh-oidc] | The same route, checks, role and scope as hops 1a and 1b | As hops 1a and 1b | A workflow outside the named environments, or from a branch other than `main`, gets no Azure token |
 | 3. Agent to gateway | The agent's own Entra agent identity, "created automatically at deploy time" [ha] | Token for the gateway's app audience | `validate-azure-ad-token` checks tenant directory, audience and that the caller is a registered agent identity [apim-auth] | Looked up from the caller's object id in the registry | No token: 401. Unregistered identity: 403. Direct call to a model: fails (spike S1) |
 | 4. Gateway to model | The gateway's managed identity | Token for Cognitive Services; role Cognitive Services OpenAI User on the model resource [apim-auth] | Azure RBAC on the model resource | Not applicable | The agent identity holds no role on the model resource |
 | 5a. Agent to the gateway's MCP endpoint (D71) | The agent identity | Token for salon-mcp's app audience, obtained through a project connection with `agentic-identity` authentication and that audience, whose target is the gateway's MCP endpoint [mcp-auth]; a direct call from the graph's own code is what spike S2 proves (D60) | `validate-azure-ad-token` for the salon-mcp audience and the registered caller [apim-mcp-sec]; registry lookup; `rate-limit-by-key` per tenant and agent [apim-rate]; `emit-metric` [apim-emit]; the token is forwarded unchanged [apim-mcp-sec] | Looked up from the caller's object id in the registry | No token: 401. Unregistered identity: 403. Over the tool rate: 429 |
@@ -407,9 +421,13 @@ What each identity holds (D42). Exact role definitions are for the implementatio
 | Pipeline identity | Push to the registry; Foundry User at project scope, the least built-in role carrying `agents/write`, which creates a version and moves the selector [ha-perm] (D78); deploy salon-mcp and gateway policies in the environment group; write release records | Foundry Project Manager; purge rights; any role outside the two groups |
 | Teardown identity | Delete and read on the gateway; read access for the nightly checks (D74) | Purge actions; any right to create or change a resource |
 | Agent identity | Calls to the gateway and salon-mcp; implicit access within its own project [ha-perm] | Any role on the model resource |
-| Gateway identity, user-assigned in the persistent group (D73) | Cognitive Services OpenAI User on the model resource [apim-auth]; Monitoring Metrics Publisher on Application Insights for its logger; nothing on salon-mcp, because it forwards the caller's token | Anything else |
+| Gateway identity, user-assigned in the persistent group (D73) | Cognitive Services OpenAI User on the model resource [apim-auth]; Monitoring Metrics Publisher on Application Insights for its logger; nothing on salon-mcp or on the agent, because it forwards the caller's token (D71, D80) | Anything else, including any right to call the agent or to act as an end user |
 | salon-mcp workload identity | Read and write on bookings and catalogue; read on the registry; query on the tenant indexes; add and read on the audit table [table-authz] | Update or delete on the audit table; write on the registry |
 | Named test identities | Foundry Agent Consumer on the agent [ha-perm] | Anything else |
+
+Every identity that calls the agent, which is the owner, the named test identities and the pipeline
+identity, also has a registry row naming the agent it may call (D80). The admin script writes the
+rows (section 3.3).
 
 **GitHub, not Azure, enforces the promotion gate.** Creating a version and moving the served
 selector need the same permission [ha-perm], so Azure cannot tell a candidate deploy from a
@@ -446,6 +464,18 @@ Notes on the design:
   by Standard v2 with virtual network integration [apim-v2], at £0.7237 an hour against £0.1551
   [prices]. Until then a nightly reconciliation check compares salon-mcp's audit rows with the
   gateway's request logs and fails on a call the gateway did not see.
+- **The gateway is in front of the agent as well (D80).** A caller reaches the gateway first, so
+  one boundary holds the rate limit, the metric and the request log for calls to the agent, as it
+  does for models and tools. It is built as Microsoft's own gateway fronts an agent that runs
+  outside Foundry: a proxy address, with "the original authorization and authentication schema in
+  the original endpoint" still applying [custom-agent]. No page describes API Management in front
+  of a hosted agent's own endpoint, so spike S1 decides whether the route stays in Phase 1
+  (section 6.2). It adds policy, not a closed path: "The agent endpoint stays public in this
+  preview" [ha-vnet], so the agent's own address still answers a caller that holds the role, and
+  the reconciliation check in section 5.4 is what notices it. Making the gateway the only identity
+  allowed to call the agent would close the path and was not adopted: Foundry would then see one
+  caller, where it now keeps each caller's sessions apart [isolate], and the gateway would need the
+  permission to act as any end user, the one named in the last note of this list [ha-perm].
 - **salon-mcp makes no model call in Phase 1.** Keyword retrieval needs no embedding, so the
   draft's hop from salon-mcp to the gateway, which asserted the tenant in a header, is gone (D45).
 - **Customer authorisation (D33).** A cancellation needs the booking reference and the contact
@@ -482,8 +512,9 @@ sequenceDiagram
   participant G as LangGraph graph
   participant K as FoundryCheckpointSaver
   participant S as salon-mcp
+  Note over C,H: client calls arrive through the gateway and the Foundry endpoint (section 4)
   C->>H: POST /responses: book a cut with Sam on Friday at three
-  H->>G: invoke; thread keyed by the conversation
+  H->>G: invoke, thread keyed by the conversation
   G->>G: classify and extract, small model
   G->>G: validate in code: hours, duration, stylist, future slot
   G->>S: get_availability(date, service, stylist)
@@ -495,7 +526,7 @@ sequenceDiagram
   C->>H: mcp_approval_response: approve
   H->>K: load checkpoint and resume
   G->>S: create_booking(slot, service, stylist, name, contact, idempotency_key)
-  S->>S: entity group transaction; unique keys; audit row
+  S->>S: entity group transaction, unique keys, audit row
   S-->>G: booking reference
   G-->>H: confirmation
   H-->>C: response with the reference
@@ -511,7 +542,9 @@ sequenceDiagram
   demonstrates.
 - **Confirmation.** With the Responses protocol, a pending interrupt surfaces as an
   `mcp_approval_request` item and the client resumes with an `mcp_approval_response` [lg-hosted].
-  Microsoft's own sample does this with conversation-scoped checkpointing [sample-hitl].
+  Microsoft's own sample does this with conversation-scoped checkpointing [sample-hitl]. Both
+  turns travel through the gateway's agent route, and callers ask for non-streaming responses in
+  Phase 1, so the route is tested on plain request and response (D80).
 - **State.** "For production Hosted agents, use a durable checkpointer instead of an in-memory
   checkpointer so graph state survives container restarts" [lg-hosted]. The checkpointer is
   `FoundryCheckpointSaver` [lc-azure], confirmed by spike S3. It runs only in the hosted container:
@@ -563,7 +596,7 @@ Table Storage, authorised only through Entra roles [table-entra].
 |---|---|---|---|---|
 | `bookings` | Environment | tenant_id | `slot|stylist|start`, `ref|reference`, `idem|key` | One row per occupied half-hour slot, one lookup row per booking, one row per idempotency key |
 | `catalogue` | Environment | tenant_id | service, stylist and opening-hours rows | Synthetic seed data |
-| `registry` | Environment | `identity` | caller object id | Maps an agent identity to tenant_id and agent_id. The one source of truth (section 3.3) |
+| `registry` | Environment | `identity` | caller object id | Maps an identity to tenant_id and agent_id: the agent's own identity on the model and tool paths, and each caller's identity on the agent path (D80). The one source of truth (section 3.3) |
 | `audit` | Persistent | tenant_id | reverse timestamp and a unique id | Append-only record of tool calls and provisioning |
 
 - **Double booking.** The partition and row key "form the primary key, and must be unique within
@@ -628,6 +661,26 @@ Policies live in the repository and are deployed with the gateway each time `up`
   nightly workflow joins the day's audit rows to the gateway's tool-call requests in Application
   Insights and fails on a row with no request (D73), which turns a bypass into a detected event.
   Closing the path is the Phase 2 lock described in section 4.
+- **Agent path (D80).** The same instance exposes the agent endpoint as an ordinary HTTP API.
+  API Management's own agent type is the A2A agent API, where "Only JSON-RPC-based A2A agent APIs
+  are supported" [apim-a2a], and the salon agent speaks the Responses protocol. Inbound:
+  `validate-azure-ad-token` for the Foundry audience [apim-validate]; the registry lookup of the
+  caller's object id, whose row must name the agent on the route; `rate-limit-by-key` with the
+  counter key set to the caller, 30 calls in 60 seconds as the starting figure and a deploy
+  parameter, returning 429 when exceeded [apim-rate]; `emit-metric` with the dimensions tenant_id,
+  agent_id and environment [apim-emit]. The token is forwarded unchanged and Foundry authorises
+  the caller again (section 4, hops 1a and 1b); the gateway's identity holds no role on the agent.
+  The route carries the Responses calls of the owner, the test identities and the pipeline.
+  Evaluation runs call the agent by name and version through the project API [eval-targets],
+  inside Foundry, and do not cross it. Spike S1 tests the route last and decides whether it stays
+  in Phase 1 (section 6.2).
+- **The reconciliation check on the agent path (D80).** The agent's own address stays reachable
+  by a caller that holds the role [ha-vnet]. The nightly workflow joins the day's agent turns in
+  Application Insights to the gateway's agent-route requests and fails on a turn with no request,
+  apart from the turns of evaluation runs, which it lists with their run ids. The join key is
+  found in spike S1: the W3C trace id, if the platform carries the gateway's trace context into
+  the container, or else a request id the gateway stamps. If S1 finds no key that survives, the
+  agent path is governed at the gateway and no detection is claimed.
 
 Limits to state plainly: counters are kept per gateway; "concurrent or near-concurrent requests
 can temporarily exceed the configured token limit"; and without prompt estimation the request that
@@ -675,7 +728,9 @@ has not been measured.
   stamps the same digest as `gen_ai.agent.version`. The release record also names Foundry's own
   version number, so a span, a release and a Foundry version can be joined whatever the version
   numbers do after a full rebuild.
-- **One trace across hops.** W3C trace context is passed to salon-mcp and to the gateway.
+- **One trace across hops.** W3C trace context is passed to salon-mcp and to the gateway. Whether
+  the gateway's agent route hands its own trace context on to the agent is recorded in spike S1
+  (D80).
 - **Content.** Message content recording is off (`enable_content_recording=False`) [lc-traces],
   in eval sessions too (D46). Data is synthetic, but the control is shown working.
 - **Retention.** The workspace keeps its defaults: "By default, all tables in a Log Analytics
@@ -701,7 +756,7 @@ has not been measured.
 flowchart LR
   agent["Agent spans: nine attribution keys; content recording off"] --> ai["Application Insights and Log Analytics, persistent group"]
   mcp["salon-mcp spans: tenant_id, gen_ai.agent.id, environment, gen_ai.tool.name"] --> ai
-  gw["Gateway token metrics: tenant_id, agent_id, environment, model_deployment"] --> ai
+  gw["Gateway metrics for tokens, tool calls and agent calls: tenant_id, agent_id, environment, model_deployment"] --> ai
   gate["Eval gate result records"] --> ai
   ai --> wb["Workbook: tokens, cost, latency, eval results by tenant and agent"]
   ai --> portal["Foundry portal Traces view and agent dashboard"]
@@ -833,16 +888,16 @@ GitHub Actions with OIDC, following Microsoft's documented flow for releasing a 
 version without changing what is served [release].
 
 ```mermaid
-flowchart LR
+flowchart TB
   pr["Pull request: lint, pytest, contracts, mutation score, Bicep build and snapshot diff, secret scan"] --> merge["Merge to protected main"]
   merge --> cand["Candidate job: environment dev, what-if, no approval"]
   cand --> pin["Pin the served version: one FixedRatio rule at 100"]
   pin --> build["Build and push the image; record and attest the digest"]
   build --> ver["Create the agent version; selector untouched"]
   ver --> sess["Session pinned to the candidate: version_ref"]
-  sess --> smoke["Smoke test"]
+  sess --> smoke["Smoke test through the gateway"]
   smoke --> evalj["Judged eval against the served version"]
-  smoke --> evals["Scripted write tests, then their traces judged"]
+  smoke --> evals["Scripted write tests through the gateway"]
   smoke --> guard["Guardrail negative test; poisoned passage"]
   evalj --> gate{"All gates pass?"}
   evals --> gate
@@ -868,7 +923,10 @@ flowchart LR
    is what stops a deploy from changing traffic [release], [cicd].
 3. **Evaluate.** Create a session pinned to the candidate with a `version_ref` indicator and run a
    smoke test, then the eval gate, the scripted write tests and the guardrail negative test
-   [release].
+   [release]. The smoke test, the scripted write tests and the guardrail test call the agent
+   through the gateway's agent route (D80). The judged evaluation is run by the evaluation
+   service, which calls the agent inside Foundry [eval-targets]; the reconciliation check lists
+   those turns as the expected exception (section 5.4).
 4. **Promote** (GitHub environment `dev-promote`, the owner as required reviewer, administrator
    bypass disallowed). The job waits; "a job cannot access environment secrets until one of the
    required reviewers approves it" and one approval is enough [gh-env]. After approval it confirms
@@ -929,7 +987,7 @@ candidate to nobody until promotion; a canary is a Phase 2 option.
 ### 5.10 Up, down and nightly teardown
 
 - **`up`.** Brings the environment to a working state from wherever it is.
-  - On a working day the environment group exists and only the gateway is missing. `up` creates
+  - On a working day the environment group exists and only the gateway is missing. `up`
     purges the soft-deleted instance, creates it with its policies and registry values, waits, and
     runs a smoke test (D74). Microsoft says a Basic
     v2 instance will "typically provision within 5-10 minutes" [ai-gw]. The gateway keeps its name,
@@ -1061,18 +1119,27 @@ agent, and can it be mapped to a tenant?
 - Method: build the standalone gateway, with the model deployments in a Foundry resource that only
   the gateway's identity can call, and run the tests from inside the agent container. Foundry's AI
   Gateway is not built. It gets a desk check: is there an API or Bicep route to enable it and set
-  its limits [ai-gw], [ai-limits]?
+  its limits [ai-gw], [ai-limits]? Test 6 is run from a client outside, with a registered test
+  identity, against the minimal hosted agent that S2 deployed.
 - Go criteria: (1) a call on the intended path succeeds and a token metric with tenant and agent
   appears within five minutes; (2) exceeding the rate returns 429 and exceeding the quota returns
   403 [apim-limit]; (3) the documented paths from the agent identity to a model are closed: the
   project endpoint, the account endpoint and the Toolbox; (4) the path can be built from the
   repository with no portal step, since it is rebuilt every working day; (5) the MCP pass-through
   forwards the agent's token unchanged, salon-mcp accepts it, an unregistered identity is refused
-  at the gateway with 403, and the tool rate limit returns 429 (D71).
+  at the gateway with 403, and the tool rate limit returns 429 (D71); (6) the agent route: a call
+  through the gateway reaches the agent on a session pinned by `version_ref` and returns, with the
+  caller's token forwarded unchanged; an unregistered caller is refused at the gateway with 403, a
+  caller without the role is refused by Foundry, and the caller rate limit returns 429 (D80).
+- Test 6 runs last and is the first thing dropped. If it fails, or the day is at risk, the agent
+  path becomes a recorded Phase 2 item, callers reach the Foundry endpoint directly as they did
+  before D80, and tests 1 to 5 stand.
 - Also recorded, not a go criterion: whether the quota counter survives a delete, purge and
   recreate of the gateway, which D39 assumes it does not; whether a call at salon-mcp's own address
-  with a valid token still succeeds, which D71 expects; and the number of tool calls in one gate
-  run, which sets the tool rate limit.
+  with a valid token still succeeds, which D71 expects; the number of tool calls in one gate
+  run, which sets the tool rate limit; and, for the agent route, which key joins an agent turn to
+  the gateway request that carried it, and the number of agent calls in one scripted run, which
+  sets the caller rate limit (D80).
 - No-go fallback: if test 3 fails, keep the gateway for metering and budget on the intended path,
   add a check that compares model usage with gateway usage, and downgrade the claim from "cannot be
   bypassed" to "bypass is detected". Network egress controls on the hosted agent, in preview
@@ -1080,12 +1147,13 @@ agent, and can it be mapped to a tenant?
   the permissions reference lists a model deployment in the account among a hosted agent's
   required resources [ha-perm]. Foundry's AI Gateway is built only if test 3 fails and the desk
   check found a route with no portal step, which review 04 did not.
-- Can change: sections 3.1, 3.2, 4 (hops 3, 4 and 5) and 5.4.
+- Can change: sections 3.1, 3.2, 4 (hops 1 to 5), 5.4 and 5.9.
 
 **S3. Durable checkpointer (0.5 day).** Does a paused confirmation survive losing the container?
 
 - Method: start a booking, stop at the confirmation interrupt, let the session go idle so the
-  compute is deprovisioned, then approve.
+  compute is deprovisioned, then approve. Both turns go through the gateway's agent route if
+  spike S1 kept it, which is where the approval round trip through the route is proved (D80).
 - Go criteria: the graph resumes and writes exactly one booking.
 - No-go fallback: `CosmosDBSaver` on Cosmos DB serverless [lc-cosmos], at £0.2242 per million
   request units and £0.19 per GB [prices].
@@ -1128,7 +1196,8 @@ agent, and can it be mapped to a tenant?
 - Measured and written into sections 5.8 and 5.11 and D39: whether the subtle regression is
   flagged; the tokens in one gate run; whether the admin-connected judge route works in UK South.
   The five baseline runs that set the thresholds are of the bootstrap release, not the spike graph
-  (D76).
+  (D76). Also recorded: how an evaluation run's calls appear in the agent's telemetry, so that the
+  reconciliation check on the agent path can list them (D80).
 - No-go fallback: the project evaluation API called from pytest (D56), with its judge model
   deployment pinned. The scripted write tests stand either way.
 - Can change: sections 5.4, 5.8 and 5.9.
@@ -1149,6 +1218,7 @@ agent, and can it be mapped to a tenant?
 | MCP server and client | FastMCP 4.0.10 and `mcp` 2.3.0 on specification 2026-07-28 [mcp-spec]; released packages, pinned because the specification moved a major revision in July 2026 | Exact versions, server and client together | None needed; the pins are the control |
 | API Management MCP server entity (D73) | The `apis` resource at API version 2025-09-01-preview [apim-mcp-rest]; the pass-through feature itself is generally available on Basic v2 [apim-mcp] | Exact API version | `az rest` at the same version |
 | Admin-connected model as the eval judge (D75) | Preview: "might not be available in all regions" [eval-admin-models] | Connection name and deployment pinned | A judge deployment on resource A for the gate run, with the window recorded |
+| API Management in front of the hosted agent endpoint (D80) | Not a documented configuration: Microsoft documents its gateway as a proxy for agents that run outside Foundry [custom-agent]. The route is an ordinary HTTP API, and `validate-azure-ad-token` applies to all tiers [apim-validate] | Policies in the repository | Callers reach the Foundry endpoint directly, as before D80; the agent path becomes a Phase 2 item |
 | LangGraph | 1.2.12; the official sample pins 1.2.11 [sample-hitl] | Exact version | None |
 
 Generally available and not in doubt: hosted agents, API Management v2 policies, Table Storage,
@@ -1222,6 +1292,8 @@ two gate runs do not fit in a day the owner chooses the quota again with the mea
 - The tool path through the gateway adds no item: the MCP server entity, its policies and its
   metrics bill nothing beyond the hours the gateway exists (D71). Standard v2, the Phase 2 lock, is
   £0.7237 an hour [prices], £97.70 at 135 hours, which is why the lock is a budget decision.
+- The agent path through the gateway adds no item for the same reason: one more API, its policies
+  and its metric on the same instance (D80).
 - A Cost Management budget of £40 covers both resource groups, with alerts at 50, 80 and 100 per
   cent of actual cost and at 100 per cent of forecast [budget]. Budgets notify only: "none of your
   resources are affected and your consumption isn't stopped" [budget-bicep]. The nightly teardown
@@ -1277,6 +1349,7 @@ council has reviewed the change.
 | Append-only audit | salon-mcp adds a record | Its update and delete attempts are refused by Azure | Refused requests |
 | Gateway budget | A call is served and metered by tenant and agent | Over the rate: 429. Over the quota: 403, shown with the low-quota test identity. A direct model call fails | Metrics and refused requests |
 | Tool path through the gateway (D71) | A tool call through the gateway is served, rate-limited and metered by tenant and agent | Over the tool rate: 429. An unregistered identity: 403 at the gateway. A call at salon-mcp's own address is caught by the reconciliation check | Metrics, refused requests and a check run |
+| Agent path through the gateway (D80), if spike S1 kept it | A call through the gateway's agent route is served, rate-limited and metered by tenant and agent, and Foundry authorises the caller again | An unregistered caller: 403 at the gateway. Over the caller rate: 429. A call at the agent's own address is caught by the reconciliation check | Metrics, refused requests and a check run |
 | Attribution | A trace shows all nine keys on every span the agent emits, and salon-mcp spans join it on the trace id | A query for agent spans missing any key returns none | Saved query |
 | Grounded answers | An FAQ answer cites only ids that were returned | A question with no source gets "I do not know"; an answer citing an id that was not returned is refused | Unit test and eval results |
 | Guardrail | A normal prompt gets HTTP 200 | An attack prompt gets HTTP 400 `content_filter`; a poisoned passage leads to no tool call | Pipeline run and unit test |
@@ -1301,7 +1374,7 @@ outside these criteria (D32).
 | 0 | 1 | Bootstrap, IaC skeleton, CI with OIDC, repository protections, spikes S2 then S1, cost measurement |
 | 0 | 2 | Spikes S3 to S6, hooks, skills, verifier, REVIEW.md, seed eval set, ADRs, spec update, council gate |
 | 1 | 1 | salon-mcp, data model, tenant module, agent graph running locally with tests, including the two-tenant test, the architecture contracts and the mutation check |
-| 1 | 2 | Hosted agent, gateway policies for the model and tool paths (D71), telemetry and attribution, guardrail, the Defender trial (D66) |
+| 1 | 2 | Hosted agent, gateway policies for the model and tool paths (D71) and the agent path (D80), telemetry and attribution, guardrail, the Defender trial (D66) |
 | 1 | 3 | Eval gate and scripted write tests, release pipeline with attestation, rollback drill, Workbook, exit demonstrations, council gate |
 
 If a time-box is at risk, scope is cut in the order below and the date holds (D30, D48).
@@ -1315,15 +1388,18 @@ Phase 0:
 
 Cut items move to after Phase 1; D36 otherwise stands. Never cut in Phase 0: the bootstrap, CI with
 OIDC, repository protections, the secrets hook and scanning, the seed eval set, and spikes S1, S2,
-S5 and S6.
+S5 and S6. Inside spike S1, test 6 is dropped first, and the agent path then becomes a Phase 2
+item (D80).
 
 Phase 1:
 
 1. The Langfuse exporter, which is already outside the exit criteria.
-2. Workbook reduced to tokens and latency only.
-3. The second model role; one model for every node.
-4. The cost-per-conversation and latency conditions in the eval gate.
-5. Stylist choice; "any available" only.
+2. The gateway's agent route (D80): callers go back to the Foundry endpoint and the route becomes
+   a Phase 2 item.
+3. Workbook reduced to tokens and latency only.
+4. The second model role; one model for every node.
+5. The cost-per-conversation and latency conditions in the eval gate.
+6. Stylist choice; "any available" only.
 
 Never cut in Phase 1, because they are the story: tenant from identity, confirmation before writes,
 the gateway negative test, the eval gate with its write-path tests, the approval gate, the audit
@@ -1350,12 +1426,17 @@ Accepted by the owner:
 - **Tool-path bypass is detected, not closed (D71).** salon-mcp stays reachable at its own address
   with a valid token until Phase 2 locks it behind Standard v2 with virtual network integration.
   The reconciliation check turns a bypass into an alert, not a refusal.
+- **Agent-path bypass is detected, not closed (D80).** The agent's own endpoint stays reachable by
+  a caller that holds a valid token and the role, because a hosted agent's endpoint stays public
+  in the current preview [ha-vnet]. The reconciliation check turns a bypass into an alert, not a
+  refusal, and evaluation runs are a listed exception. Closing the path is a Phase 2 decision.
 
 Design risks:
 
 | Risk | Mitigation |
 |---|---|
 | The gateway budget can be bypassed | Spike S1, with a stated downgrade of the claim if it cannot be closed |
+| API Management in front of a hosted agent's own endpoint is not a documented configuration | Spike S1, test 6, with a stated fallback: callers reach the Foundry endpoint directly and the agent path moves to Phase 2 (D80) |
 | The quota counter restarts when the gateway is purged | A daily quota, and a monthly figure reported from persisted metrics with an alert (D39) |
 | The daily quota is smaller than one gate run | Spike S6 measures it; the quota is a deploy parameter; the owner chooses again with the figure (D39) |
 | The eval gate detects only gross regressions | Stated as the claim until S6 measures the noise (D44) |
@@ -1377,12 +1458,12 @@ Design risks:
 
 **Regulated-industry requirements, and where the design meets them.** Recorded at the owner's
 request on 2026-10-04 against an external note; the gateway as the one boundary for models and
-tools is D71.
+tools is D71, and for calls to the agent D80.
 
 | Requirement | Where it is met | Gap and path |
 |---|---|---|
-| Strong identity: Entra tokens, audience validation, least-privilege identities, authorisation at the gateway and at the service | Section 4: every hop, the role table, the gateway's checks and salon-mcp's checks (hops 5a and 5b) | None |
-| No bypass of the gateway | Model path closed by the model resource's role assignments (S1); tool path governed at the gateway and watched by the reconciliation check | Tool path closed in Phase 2 by Standard v2 with virtual network integration |
+| Strong identity: Entra tokens, audience validation, least-privilege identities, authorisation at the gateway and at the service | Section 4: every hop, the role table, the gateway's checks, Foundry's checks and salon-mcp's checks (hops 1a, 1b, 5a and 5b) | None |
+| No bypass of the gateway | Model path closed by the model resource's role assignments (S1); tool path and agent path governed at the gateway and watched by the reconciliation checks (D71, D80) | Tool path closed in Phase 2 by Standard v2 with virtual network integration; the agent path cannot be closed by network while the platform keeps a hosted agent's endpoint public [ha-vnet], and its closure is a Phase 2 decision |
 | Private networking | Out of scope by decision (D52) | Phase 2, with the lock above |
 | Auditable operations: central logs, correlated traces, a protected audit trail | 5.6: one workspace, W3C trace context, nine keys; 5.3: the append-only audit table; 5.9: immutable Releases | None |
 | Resilience | Not a goal (intent section 8); the gateway is a deliberate single point, rebuilt nightly and proven by S5 | High availability in later phases |
@@ -1390,11 +1471,13 @@ tools is D71.
 
 ## 12. Open questions
 
-For the owner: none are open from this gate. Four come back with measurements:
+For the owner: none are open from this gate. Five come back with measurements:
 
 - the daily token quota, once spike S6 has measured a gate run (D39);
 - the search tier, once spike S4 has run (D27);
 - the tool rate limit, once spike S1 has counted the tool calls in a gate run (D71);
+- whether the agent path stays in Phase 1, and its caller rate limit, once spike S1 has run test 6
+  (D80);
 - the judge route, once spike S6 has tried the admin-connected model (D75).
 
 For the implementation plan:
@@ -1409,10 +1492,15 @@ For the implementation plan:
 
 ## 13. References
 
-All opened on 2026-10-03; the rows added for D71 to D79 were opened on 2026-10-04.
+All opened on 2026-10-03; the rows added for D71 to D80 were opened on 2026-10-04.
 
 | Key | Source |
 |---|---|
+| [caf-agents] | https://learn.microsoft.com/azure/cloud-adoption-framework/ai-agents/integrate-manage-operate |
+| [custom-agent] | https://learn.microsoft.com/azure/foundry/control-plane/register-custom-agent |
+| [ha-vnet] | https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/virtual-networks |
+| [apim-validate] | https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy |
+| [apim-a2a] | https://learn.microsoft.com/azure/api-management/agent-to-agent-api |
 | [apim-mcp-rest] | https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api |
 | [apim-appinsights] | https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights |
 | [eval-admin-models] | https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-admin-connected-models |
