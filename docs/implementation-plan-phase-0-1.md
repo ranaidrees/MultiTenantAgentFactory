@@ -1,6 +1,6 @@
 # Implementation plan: Phases 0 and 1
 
-Author: Rana Naveed Idrees. Status: awaiting the owner's acceptance; revised for D80, and then for principal review 06 (D83 to D88). The revision also carries D81 and D82. Date: 2026-10-04.
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 05 and principal review 06; revised for D72 to D79, for D80 to D82, and for D83 to D88. Appendices A, E and F are signed. Date: 2026-10-04.
 Stage: 3 of 6 (Build, the plan). Reads: docs/intent.md revision 18 (D1 to D88) and docs/spec-phase-0-1.md (accepted 2026-10-04, revised for D71 to D88).
 Council record: docs/council/05-implementation-plan-phase-0-1-review.md, which reviewed commit 7dfc3c8; the revision before this one applied its findings as the owner decided (D72 to D79). This revision adds the gateway's agent route (D80), the time it is given (D81) and the test identities (D82). A revised artefact gets one single-reviewer pass with a currency audit and no council rerun (D70): docs/council/06-implementation-plan-phase-0-1-principal-review.md. Its changes are applied here as the owner decided (D83 to D88).
 Next artifact: code and tests, in pull requests, after this plan is accepted.
@@ -742,7 +742,7 @@ whether the pipeline's calls to the agent are made as the consumer-only identity
 The spec's section 7 and this plan name the same hosting library versions since principal review
 06.
 
-## Appendix A. The three golden conversations and the agent route's exit row as feature files (spec 5.11, 9.2, D67, D80)
+## Appendix A. The three golden conversations and the agent route's exit row as feature files (spec 5.11, 9.2, D67, D80). Signed by the owner on 2026-10-04
 
 These are the signed behaviour. They live at `tests/features/book.feature`, `cancel.feature` and
 `faq.feature` and are executed by the BDD runner against (a) the graph run locally with
@@ -1067,7 +1067,7 @@ authenticated Azure Developer CLI [foundry-skill].
    know: the tenant boundary, the attribution keys, the MCP security rules and the IaC conventions
    of this repository.
 
-## Appendix E. Catalogue and FAQ seed content (synthetic, D29)
+## Appendix E. Catalogue and FAQ seed content (synthetic, D29). Signed by the owner on 2026-10-04
 
 Tenant for Phase 1: `salon-a`, display name "Salon A, Harbour Street". Everything below is invented.
 The contact number is in the Ofcom range reserved for drama; the domain is reserved for examples.
@@ -1158,7 +1158,7 @@ details, so that the unanswerable rows in Appendix F have nothing to retrieve.
 | F31 | Washing before colour | Come to a colour appointment with hair that has not been washed that day; natural oils protect the scalp. |
 | F32 | Preferred stylist | You can ask for a named stylist when you book. If they are not free, we will offer the nearest time or any available stylist. |
 
-## Appendix F. The eval set: 110 rows for the owner's signature (D57, D67)
+## Appendix F. The eval set: 110 rows (D57, D67). Signed by the owner on 2026-10-04
 
 Rows are the signed source. The build stage writes them to `evals/salon-seed.json` in the Action's
 row format and records the file's SHA-256 in every release record; a change to any row is a new
