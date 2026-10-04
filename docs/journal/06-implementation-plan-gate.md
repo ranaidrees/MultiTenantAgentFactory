@@ -129,7 +129,12 @@ Three later messages set the course. After the pre-flight stopped: "what is next
 update spcs.md and implementation-plan.md". During the review: "can you please validate that
 intent.md, specs.md and implemetation-plan.ms are all aligned. I am happy with Specs.md so we need
 to update them accordingly. But first make sure that all of your recommendations updated in
-specs.md". Then: "can you show me and render specs.md diagrams with bullet summaries".
+specs.md". Then: "can you show me and render specs.md diagrams with bullet summaries". And after the
+handover: "can you check thtat intent.md, specs.md and implementation-plan.md alignf and
+consildatd. all agent evaluations, online evaluation, offline evaluations, pydantic , input
+guards, output guards, golden dataset and golden dataset incremented based on online evaluation
+feedback. all good agent ops practices and pattrns. please update the prompt to check this
+before next step".
 
 ## 2. What happened, in order
 
@@ -160,6 +165,10 @@ specs.md". Then: "can you show me and render specs.md diagrams with bullet summa
     CLAUDE.md.
 11. `/cleanup` at ae57bb7: 29 tracked files checked, no secrets, no stray files, nothing removed
     or merged, no change proposed. This entry; push.
+12. After the handover the owner asked whether the three documents are aligned and consolidated
+    on AgentOps practice. A read-only check found the practices that are in scope aligned, and
+    four things stated nowhere. Nothing was changed: the plan is accepted, so a change is a new
+    decision. The check became the first task of the next session (section 7).
 
 ## 3. Owner decisions
 
@@ -234,14 +243,32 @@ Owner, before the next session:
   with the `azure.ai.agents` extension, Docker Desktop, and WSL for a local mutation run.
 - Be ready to run the bootstrap yourself: steps 0.2, 0.3 and 0.7 use your Azure and GitHub logins.
 
-Next session (Stage 4, Build, from plan step 0.1):
+Before any code: the AgentOps coverage check the owner asked for at the end of this session.
+What a read-only pass found, to be confirmed against current sources by the next session:
+- Aligned in all three documents and inside Phases 0 and 1: the offline eval gate, the golden
+  conversations and the signed eval set with its hash, the input guard and its negative tests,
+  the checks on output (citations, booking rules in code, confirmation before a write), tracing
+  and attribution, token budgets, versioning, approval and rollback.
+- Present but later, by decision: online evaluation and drift (Phase 6, beyond the stop line of
+  D30); trace evaluation of the write intents (Phase 2, D77); safety evaluators and red teaming
+  (Phase 2, D63); PII masking and user feedback (Phase 5).
+- Stated nowhere: how the golden dataset grows from what online evaluation or feedback finds;
+  typed schemas, with Pydantic named and pinned, for the graph's state, the extraction output,
+  the tools' inputs and the records; a scheduled evaluation of the served version, which needs
+  no message content; a test that the output filter refuses.
+- Not consolidated: no single table says which practice is built in which phase and where.
+
+Next session (the AgentOps check, then Stage 4, Build, from plan step 0.1):
 1. Pre-flight. Read CLAUDE.md, this section, plan sections 1 to 4, 9 and 11, and review 06,
    sections 1 and 2.
-2. Step 0.1, the toolchain and workspace skeleton, on a branch and by pull request. Fill the
+2. The AgentOps coverage check, as a gate before step 0.1. Findings go to the owner. A change
+   to an accepted document is D89 onwards: intent first, then spec, then plan, with an
+   independent read. If documents change, the session stops there and Build starts in the next.
+3. Step 0.1, the toolchain and workspace skeleton, on a branch and by pull request. Fill the
    Commands section of CLAUDE.md.
-3. Step 0.2, the bootstrap of the persistent group. State cost and blast radius first; the owner
+4. Step 0.2, the bootstrap of the persistent group. State cost and blast radius first; the owner
    runs it.
-4. Stop at the end of a step, with a journal entry. Phase 0 is 12 working days; no step is
+5. Stop at the end of a step, with a journal entry. Phase 0 is 12 working days; no step is
    extended without the owner.
 
 Still open: the seven items that return with measurements (plan section 12); the condition on
