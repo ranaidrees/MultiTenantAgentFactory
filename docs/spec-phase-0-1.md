@@ -1,7 +1,7 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan) and for D80 (the gateway also fronts the agent endpoint, gated by spike S1). Date: 2026-10-04.
-Stage: 2 of 6 (Design). Reads: docs/intent.md revision 16 (decisions D1 to D80).
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan), for D80 (the gateway also fronts the agent endpoint, gated by spike S1) and for D81 and D82 (the time the agent route is given, and the test identities). Date: 2026-10-04.
+Stage: 2 of 6 (Design). Reads: docs/intent.md revision 17 (decisions D1 to D82).
 Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
 
@@ -38,8 +38,8 @@ and section 2.5 lists it.
 | Council Q4: tenancy unit in Foundry | One Foundry project per tenant | D24 |
 | Council Q5: share one gateway between dev and prod | Does not arise: dev is the only environment | D19 |
 | Council Q6: stop line | End of Phase 3 | D30 |
-| Council Q7: Phase 1 length | Three weeks with cuts; Phase 0 is two weeks | D30, D31 |
-| Council Q8: Phase 1 caller | Named Entra test identities only | D33 |
+| Council Q7: Phase 1 length | Three weeks with cuts; Phase 0 is two weeks. Now 16 and 10.5 working days (D81) | D30, D31, D81 |
+| Council Q8: Phase 1 caller | Named Entra test identities only, which are managed identities (D82) | D33, D82 |
 | Council Q9: additions | Negative demos and a prompt-injection guardrail; later extended at the spec gate | D31, D46 |
 | Council Q10: Langfuse | Optional exporter, off by default | D32 |
 | Council Q11: real data before Phase 5 | No, synthetic only | D29 |
@@ -178,6 +178,8 @@ Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md.
 | Questions 6 and 7: identities and the injection control | Foundry User at project scope for the pipeline; no search delete for teardown; structural control plus the poisoned-passage test | D78 |
 | Questions 9 and 10: supply chain and the harness | Base image by digest; scanner deferred; plugin auto-update off; mutation checks wired in Phase 0 and measured in Phase 1 | D79 |
 | The owner's question of 2026-10-04, raised with a colleague's proposed architecture: should a caller reach the central gateway first, so that all AI traffic crosses it? | Yes: the gateway also fronts the agent endpoint as a pass-through, gated by spike S1; if its test fails or the time-box is at risk, the agent path becomes a recorded Phase 2 item | D80 |
+| The question journal entry 05 left with the owner: does test 6 of spike S1 get its own half-day, and what pays for the agent route? | Yes, a half-day that is not extended. Time gives: Phase 0 is 10.5 working days and Phase 1 is 16, and the cloud setup script and the verifier move to after Phase 1. The session's additions to D80 are confirmed unchanged | D81 |
+| How are the named test identities created? Section 12 left it to the plan | Three user-assigned managed identities with federated credentials for the `dev` environment, created by the bootstrap. Entra test users were not adopted | D82 |
 
 ## 3. Architecture
 
@@ -185,11 +187,12 @@ Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md.
 
 **Context.** The owner holds two roles, author and approver, and two logins, GitHub and Azure. The
 only other callers are named test identities, the pipeline and the auditor who reads the evidence.
+The test identities are managed identities that a job in the `dev` environment signs in as (D82).
 
 ```mermaid
 flowchart TB
   owner["Owner: author, approver and platform admin"]
-  tester["Named Entra test identities"]
+  tester["Named test identities: managed identities, used by jobs in dev"]
   auditor["Auditor or interviewer"]
   gh["GitHub: repository, Actions, environments, Releases"]
   dev["Azure dev environment: UK South and UK West"]
@@ -197,7 +200,7 @@ flowchart TB
   langfuse["Langfuse Cloud, optional, off by default"]
   owner -->|"pull requests; approvals in the browser"| gh
   owner -->|"up, down and the admin script, own login"| dev
-  tester -->|"Entra token, through the gateway; Foundry Agent Consumer"| dev
+  tester -->|"federated Entra token, through the gateway"| dev
   gh -->|"OIDC: pipeline identity and teardown identity"| dev
   gh -->|"release records and eval results"| persist
   dev -->|"traces, metrics, audit rows"| persist
@@ -252,13 +255,13 @@ Two groups. Names are proposals for the implementation plan.
 
 | Group | Lifetime | Contents |
 |---|---|---|
-| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity and teardown identity, each with federated credentials; workload identity for salon-mcp; the gateway's user-assigned identity (D73); Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release records; container registry; Azure Workbook; the cost budget (D51) |
+| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity and teardown identity, each with federated credentials; workload identity for salon-mcp; the gateway's user-assigned identity (D73); the three test identities, each with a federated credential (D82); Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release records; container registry; Azure Workbook; the cost budget (D51) |
 | Environment (`rg-maf-dev`) | Created by `up`; kept between working days; deleted only by a full `down` | Two Foundry resources, one for the tenant projects and the hosted agent and one for the model deployments; the gateway, which alone is deleted nightly and purged by `up` the next morning (D37, D74); Container Apps environment and salon-mcp; storage account holding bookings, catalogue and the tenant registry; search service |
 
 ```mermaid
 flowchart LR
   subgraph persist["rg-maf-persist, UK South, never torn down"]
-    ids["Pipeline, teardown, workload and gateway identities"]
+    ids["Pipeline, teardown, workload, gateway and test identities"]
     law["Log Analytics and Application Insights"]
     evid["Storage: audit table, eval results, release records"]
     acr["Container registry"]
@@ -405,8 +408,8 @@ sequenceDiagram
 
 | Hop | Principal | Credential and audience | Check made by the receiver | Where tenant_id comes from | Negative test |
 |---|---|---|---|---|---|
-| 1a. Caller to the gateway's agent route (D80) | The owner's Entra user or a named test identity | User token for the Foundry audience, sent to the gateway | `validate-azure-ad-token` for that audience [apim-validate]; the registry must hold a caller row for this object id and the agent named on the route; `rate-limit-by-key` for each caller [apim-rate]; `emit-metric` [apim-emit]; the token is forwarded unchanged, which spike S1 checks | From the agent named on the route, through its agent row in the registry; the caller row only says who may call it | No token: 401. No caller row for this agent: 403. Over the caller rate: 429 |
-| 1b. Gateway to agent | The caller, in the forwarded token | The same token | Foundry requires the endpoint interact permission; Foundry Agent Consumer is "the least-privilege built-in role" and can be assigned at agent scope [ha-perm]. Foundry "identifies each caller from their Microsoft Entra token" [isolate], so sessions stay scoped to the caller | The agent itself: one agent belongs to one tenant | An identity without the role is refused by Foundry. A call at the agent's own address with a valid token and the role succeeds: the path is not closed, and the reconciliation check reports the call where spike S1 found a join key (section 5.4) |
+| 1a. Caller to the gateway's agent route (D80) | The owner's Entra user or a named test identity, which is a managed identity (D82) | The owner's user token, or the test identity's federated token [gh-oidc], for the Foundry audience, sent to the gateway | `validate-azure-ad-token` for that audience [apim-validate]; the registry must hold a caller row for this object id and the agent named on the route; `rate-limit-by-key` for each caller [apim-rate]; `emit-metric` [apim-emit]; the token is forwarded unchanged, which spike S1 checks | From the agent named on the route, through its agent row in the registry; the caller row only says who may call it | No token: 401. No caller row for this agent: 403, shown with the test identity that holds the role and no row (D82). Over the caller rate: 429 |
+| 1b. Gateway to agent | The caller, in the forwarded token | The same token | Foundry requires the endpoint interact permission; Foundry Agent Consumer is "the least-privilege built-in role" and can be assigned at agent scope [ha-perm]. Foundry "identifies each caller from their Microsoft Entra token" [isolate], so sessions stay scoped to the caller | The agent itself: one agent belongs to one tenant | An identity without the role is refused by Foundry, shown through the route with the test identity that holds a caller row and no role (D82). A call at the agent's own address with a valid token and the role succeeds: the path is not closed, and the reconciliation check reports the call where spike S1 found a join key (section 5.4) |
 | 2. Pipeline to agent | Pipeline managed identity, by GitHub OIDC | Federated token; no stored secret [gh-oidc] | The same route, checks, role and scope as hops 1a and 1b | As hops 1a and 1b | A workflow outside the named environments, or from a branch other than `main`, gets no Azure token |
 | 3. Agent to gateway | The agent's own Entra agent identity, "created automatically at deploy time" [ha] | Token for the gateway's app audience | `validate-azure-ad-token` checks tenant directory, audience and that the caller is a registered agent identity [apim-auth] | Looked up from the caller's object id in the registry | No token: 401. Unregistered identity: 403. Direct call to a model: fails (spike S1) |
 | 4. Gateway to model | The gateway's managed identity | Token for Cognitive Services; role Cognitive Services OpenAI User on the model resource [apim-auth] | Azure RBAC on the model resource | Not applicable | The agent identity holds no role on the model resource |
@@ -426,15 +429,26 @@ What each identity holds (D42). Exact role definitions are for the implementatio
 | Agent identity | Calls to the gateway and salon-mcp; implicit access within its own project [ha-perm] | Any role on the model resource |
 | Gateway identity, user-assigned in the persistent group (D73) | Cognitive Services OpenAI User on the model resource [apim-auth]; Monitoring Metrics Publisher on Application Insights for its logger; nothing on salon-mcp or on the agent, because it forwards the caller's token (D71, D80) | Anything else, including any right to call the agent or to act as an end user |
 | salon-mcp workload identity | Read and write on bookings and catalogue; read on the registry; query on the tenant indexes; add and read on the audit table [table-authz] | Update or delete on the audit table; write on the registry |
-| Named test identities | Foundry Agent Consumer on the agent [ha-perm] | Anything else |
+| Test identity that is served (D82) | Foundry Agent Consumer on the agent [ha-perm]; a caller row | Anything else |
+| Test identity that Foundry refuses (D82) | A caller row | The role on the agent; anything else |
+| Test identity that the gateway refuses (D82) | Foundry Agent Consumer on the agent [ha-perm] | A caller row; anything else |
 
-Every identity that calls the agent, which is the owner, the named test identities and the pipeline
-identity, also has a caller row in the registry for each agent it may call (D80). The admin script
-writes the rows (section 3.3). The gateway checks the row and Foundry checks the role, and nothing
+Every identity that may call the agent through the gateway, which is the owner, the pipeline
+identity and two of the three test identities, has a caller row in the registry for each agent it
+may call (D80). The third test identity holds the role and no row, so that the gateway's own
+refusal can be shown (D82). The admin script writes the rows (section 3.3). The gateway checks the row and Foundry checks the role, and nothing
 in Phase 1 keeps the two in step: Foundry User at project scope also carries the right to call the
 agent [ha-perm], so the pipeline identity holds it, and so does whoever created the project if the
 platform granted that role on creation. Such a principal with no caller row is refused at the
 gateway and answered at the agent's own address.
+
+The test identities are three user-assigned managed identities in the persistent group, each with
+a federated credential for the `dev` environment, so a job there signs in as one with no stored
+secret [gh-oidc] (D82). Foundry's permission to call an agent can be held by "the calling user or
+service principal" [ha-perm]. Entra test users were not adopted: creating one needs a password
+[az-ad-user], security defaults require multifactor authentication for the Azure CLI
+[sec-defaults], and a stranger could not then reproduce the demonstrations with one command. The
+owner's user is the only human caller.
 
 **GitHub, not Azure, enforces the promotion gate.** Creating a version and moving the served
 selector need the same permission [ha-perm], so Azure cannot tell a candidate deploy from a
@@ -706,7 +720,8 @@ Policies live in the repository and are deployed with the gateway each time `up`
     The gateway's diagnostic never records the `Authorization` header, policy changes go through
     pull requests, and the served-image check (section 5.9) catches a promotion made outside the
     gate. Calling the route with an identity that holds only Foundry Agent Consumer would narrow
-    this; it is not done in Phase 1, which creates no fourth identity (D72).
+    this. The pipeline does not do so in Phase 1: it calls as itself. The test identities of D82
+    hold only that role, and using one for the pipeline's calls is an option for the plan review.
 - **The reconciliation check on the agent path (D80).** The agent's own address stays reachable
   by a caller that holds the role (section 4). If spike S1 finds a join key, the nightly workflow
   joins each agent turn since its last run to one gateway agent-route request, each request
@@ -1114,7 +1129,7 @@ in Phase 1.
 
 | Deliverable | Acceptance check |
 |---|---|
-| Bootstrap: persistent group; pipeline, teardown and workload identities; federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
+| Bootstrap: persistent group; pipeline, teardown and workload identities and the three test identities (D82); federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
 | IaC skeleton: environment Bicep, tenant module in its Bicep and script parts, `up`, both forms of `down`, nightly teardown | Spike S5 passes |
 | CI with OIDC: pull request checks and the release workflow skeleton, every Action pinned by full SHA, read-only default token, image attestation (D62) | A no-op change travels from pull request to promotion, with approval, and its attestation verifies |
 | Mutation testing and a complexity-and-coverage report on the control modules (D68) | A mutated control module fails the pull request check |
@@ -1124,10 +1139,10 @@ in Phase 1.
 | Test-edit hook (D36) | Editing a test while a fix is in progress is blocked |
 | Four skills (D36): tenant isolation, MCP security, telemetry attribution, IaC conventions | Each is a `SKILL.md` under `.claude/skills/` with a description that triggers it [cc-skills] |
 | The Microsoft Foundry Skill (D65) | Installed through the Azure plugin for Claude Code; a deployment-readiness prompt uses it [foundry-skill] |
-| Verifier subagent (D36) | A definition under `.claude/agents/` [cc-agents] that checks work against the accepted plan |
+| Verifier subagent (D36), moved to after Phase 1 (D81) | A definition under `.claude/agents/` [cc-agents] that checks work against the accepted plan |
 | REVIEW.md with passes at the system level (D69): the controls still refuse, the contracts hold, the mutation score, spec drift, secrets, cost; no line-by-line pass | Used on the first Phase 0 pull request |
 | Seed eval set, every expected outcome signed by the owner (D67) | Loads in the eval Action in spike S6 |
-| Cloud environment setup script | A cloud session can install dependencies and run the unit tests with no Azure credential |
+| Cloud environment setup script, moved to after Phase 1 (D81) | A cloud session can install dependencies and run the unit tests with no Azure credential |
 | ADR folder | One short record per spike with the result and its evidence |
 | CLAUDE.md architecture and commands sections | Architecture filled from this spec once accepted; commands when code exists |
 | GitHub secret scanning and push protection (D18) | Enabled on the repository |
@@ -1139,7 +1154,7 @@ on the repository is the control that does not depend on the session.
 
 ### 6.2 Spikes
 
-Six spikes, 4.25 days in total, inside the two weeks of Phase 0. They run in the order below: S2
+Six spikes, 4.75 days in total, inside the 10.5 working days of Phase 0 (D81). They run in the order below: S2
 comes first because S1's first test needs the token S2 finds (D47). A spike that reaches its
 time-box without a go takes its fallback. Time-boxes are not extended.
 
@@ -1157,14 +1172,15 @@ agent, and can it be mapped to a tenant?
   identity, which D24 makes tenant-specific.
 - Can change: section 4, hops 3 and 5.
 
-**S1. Gateway binding (1 day).** Can the token budget be made impossible to bypass?
+**S1. Gateway binding (1.5 days: one day for tests 1 to 5, then a half-day for test 6, D81).** Can the token budget be made impossible to bypass?
 
 - Method: build the standalone gateway, with the model deployments in a Foundry resource that only
   the gateway's identity can call, and run the tests from inside the agent container. Foundry's AI
   Gateway is not built. It gets a desk check: is there an API or Bicep route to enable it and set
   its limits [ai-gw], [ai-limits]? Test 6 is run from a client outside the platform, against the
-  minimal hosted agent that S2 deployed, with the one principal that exists in week 1 and can
-  call it: the owner's user, with its caller row and then without it.
+  minimal hosted agent that S2 deployed, with the one principal that can call it from a
+  workstation: the owner's user, with its caller row and then without it. The test identities of
+  D82 sign in only from a job in the `dev` environment.
 - Go criteria: (1) a call on the intended path succeeds and a token metric with tenant and agent
   appears within five minutes; (2) exceeding the rate returns 429 and exceeding the quota returns
   403 [apim-limit]; (3) the documented paths from the agent identity to a model are closed: the
@@ -1175,9 +1191,11 @@ agent, and can it be mapped to a tenant?
   through the gateway reaches the agent and returns, with the caller's token validated at the
   gateway for the Foundry audience and forwarded unchanged; the same caller with no caller row is
   refused at the gateway with 403; and the caller rate limit returns 429 (D80).
-- Test 6 runs last and is the first thing dropped. S1 stays one day and already held five tests,
-  a desk check and a purge cycle, so a drop for lack of time is as likely as a drop on evidence;
-  the ADR records which it was. It has three outcomes:
+- Test 6 runs last, in a half-day of its own that holds the minimal route and the test and is not
+  extended (D81). The day before it already holds five tests, a desk check and a purge cycle,
+  which is why the test was given its own time. It is still the first thing dropped: if it fails
+  or the half-day runs out, the agent path drops, and the ADR records which it was. It has three
+  outcomes:
   - *Kept, with a join key.* The agent path is governed at the gateway and a direct call is
     reported, within the limits stated in section 5.4.
   - *Kept, without a join key.* The agent path is governed at the gateway. Every statement that a
@@ -1430,25 +1448,28 @@ outside these criteria (D32).
 
 | Phase | Week | Work |
 |---|---|---|
-| 0 | 1 | Bootstrap, IaC skeleton, CI with OIDC, repository protections, spikes S2 then S1, cost measurement |
-| 0 | 2 | Spikes S3 to S6, hooks, skills, verifier, REVIEW.md, seed eval set, ADRs, spec update, council gate |
+| 0 | 1 | Bootstrap, IaC skeleton, CI with OIDC, repository protections, spikes S2 then S1 (tests 1 to 5), cost measurement |
+| 0 | 2, and a half-day (D81) | Test 6 of spike S1 in its own half-day, spikes S3 to S6, hooks, skills, REVIEW.md, seed eval set, ADRs, spec update, council gate |
 | 1 | 1 | salon-mcp, data model, tenant module, agent graph running locally with tests, including the two-tenant test, the architecture contracts and the mutation check |
 | 1 | 2 | Hosted agent, gateway policies for the model and tool paths (D71) and the agent path (D80), telemetry and attribution, guardrail, the Defender trial (D66) |
 | 1 | 3 | Eval gate and scripted write tests, release pipeline with attestation, rollback drill, Workbook, exit demonstrations, council gate |
 
+Phase 0 is 10.5 working days and Phase 1 is 16 (D81). The agent route is estimated at a day and a
+half, half a day in Phase 0 and about a day in Phase 1, and the weeks had no slack to give it.
+Phase 1's extra day falls in weeks 1 and 2. The implementation plan gives the days step by step.
+
 If a time-box is at risk, scope is cut in the order below and the date holds (D30, D48).
 
-Phase 0:
+Phase 0. The first two items of D48's order, the cloud environment setup script and the verifier
+subagent, are applied already and move to after Phase 1 (D81). What remains, in order:
 
-1. The cloud environment setup script.
-2. The verifier subagent.
-3. The telemetry attribution and IaC conventions skills. Tenant isolation and MCP security stay.
-4. The test-edit hook.
+1. The telemetry attribution and IaC conventions skills. Tenant isolation and MCP security stay.
+2. The test-edit hook.
 
 Cut items move to after Phase 1; D36 otherwise stands. Never cut in Phase 0: the bootstrap, CI with
 OIDC, repository protections, the secrets hook and scanning, the seed eval set, and spikes S1, S2,
-S5 and S6. Inside spike S1, test 6 is dropped first, and the agent path then becomes a Phase 2
-item (D80).
+S5 and S6. Inside spike S1, test 6 has its own half-day, which is not extended: if the test fails
+or the half-day runs out, the agent path becomes a Phase 2 item (D80, D81).
 
 Phase 1:
 
@@ -1498,7 +1519,8 @@ Design risks:
 |---|---|
 | The gateway budget can be bypassed | Spike S1, with a stated downgrade of the claim if it cannot be closed |
 | No page was found that describes API Management in front of a hosted agent's own endpoint | Spike S1, test 6, with a stated fallback: callers reach the Foundry endpoint directly and the agent path moves to Phase 2 (D80) |
-| Test 6 is dropped for lack of time, not on evidence, because S1 stays one day | The ADR records which it was; the owner may give the test its own half-day (D80) |
+| Test 6 is dropped for lack of time, not on evidence | The test has its own half-day, which is not extended (D81); the ADR records which it was |
+| Neither phase has slack once the agent route is given its time (D81) | The cut orders of section 10, where the agent route is the second item in Phase 1 |
 | The gateway handles callers' Foundry tokens, which are valid beyond this agent (D80) | The `Authorization` header is never recorded; policy changes go through pull requests; the served-image check catches a promotion made outside the gate |
 | A caller row and a Foundry role can drift apart (D80) | Stated in section 4; a nightly comparison of the two is an option for the plan review, not designed here |
 | The quota counter restarts when the gateway is purged | A daily quota, and a monthly figure reported from persisted metrics with an alert (D39) |
@@ -1552,13 +1574,11 @@ For the implementation plan:
 - The mutation score and complexity thresholds for the control modules, measured first (D68), and
   the tool choices for mutation testing, the import contracts and the BDD runner.
 - The names and flags of the two forms of `down`.
-- How the named test identities are created, and under which login: neither this spec nor the
-  bootstrap in section 6.1 says (D33, D80).
 - The catalogue and FAQ seed content, and the 110 rows of the eval set, signed by the owner (D67).
 
 ## 13. References
 
-All opened on 2026-10-03; the rows added for D71 to D80 were opened on 2026-10-04.
+All opened on 2026-10-03; the rows added for D71 to D82 were opened on 2026-10-04.
 
 | Key | Source |
 |---|---|
@@ -1569,6 +1589,8 @@ All opened on 2026-10-03; the rows added for D71 to D80 were opened on 2026-10-0
 | [sessions] | https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-sessions |
 | [apim-validate] | https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy |
 | [apim-a2a] | https://learn.microsoft.com/azure/api-management/agent-to-agent-api |
+| [az-ad-user] | https://learn.microsoft.com/en-us/cli/azure/ad/user |
+| [sec-defaults] | https://learn.microsoft.com/en-us/entra/fundamentals/security-defaults |
 | [apim-mcp-rest] | https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api |
 | [apim-appinsights] | https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights |
 | [eval-admin-models] | https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-admin-connected-models |
