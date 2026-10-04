@@ -1,7 +1,7 @@
 # Principal engineer review: docs/implementation-plan-phase-0-1.md
 
 Date: 2026-10-04. Artifact reviewed: docs/implementation-plan-phase-0-1.md as revised for D80 to D82 at commit 37e585e, and re-read at commit 65d6849 after the alignment corrections listed in section 14.
-Method: one deep single-reviewer pass with a currency audit, not a council run (D70). The owner asked for it before deciding on acceptance.
+Method: one deep single-reviewer pass with a currency audit, not a council run (D70). The owner asked for it before deciding on acceptance. The owner's decisions on it are D83 to D88 in docs/intent.md revision 18: the first option of section 13 in each case, except D87, where the owner chose to extend the boxes.
 Reviewer lens: AI platform engineering on Azure: Microsoft Foundry hosted agents, API Management, identity, evaluation, release engineering and delivery planning.
 Reads: docs/intent.md revision 17 (D1 to D82), docs/spec-phase-0-1.md, docs/council/05-implementation-plan-phase-0-1-review.md, docs/journal/05-gateway-in-front-of-agent.md, CLAUDE.md.
 
