@@ -53,8 +53,9 @@ Design: `docs/spec-phase-0-1.md`, sections 3 to 5, accepted 2026-10-04. In eight
    the graph is a plain package behind a thin hosting adapter.
 2. salon-mcp (FastMCP on Container Apps): the tools, Table Storage bookings and one keyword AI Search
    index per tenant; it enforces the tenant boundary in code from the caller's identity.
-3. Gateway: API Management Basic v2 in UK West meters and caps tokens per tenant and agent and is
-   removed nightly; the models sit in a Foundry resource that only the gateway's identity can call.
+3. Gateway: API Management Basic v2 in UK West meters and caps tokens per tenant and agent, fronts
+   salon-mcp as an MCP pass-through (D71) and is removed nightly; the models sit in a Foundry
+   resource that only the gateway's identity can call.
 4. Entra identity at every hop, no keys; tenant_id comes from the caller's registry entry, never from
    the model, and no tool schema accepts it.
 5. Two groups: persistent (identities, logs, audit, evidence, Workbook, budget), never torn down; the

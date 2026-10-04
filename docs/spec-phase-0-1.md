@@ -1,7 +1,7 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04. Date: 2026-10-03.
-Stage: 2 of 6 (Design). Reads: docs/intent.md revision 13 (decisions D1 to D70).
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp). Date: 2026-10-04.
+Stage: 2 of 6 (Design). Reads: docs/intent.md revision 14 (decisions D1 to D71).
 Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
 
@@ -161,6 +161,12 @@ Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md.
 | Challenge C10: Defender for AI Services | Trial period only | D66 |
 | Section 14: engineering practice | Owner-signed behaviour; mutation testing; architecture contracts; review process | D67 to D70 |
 
+### 2.7 Decision after acceptance
+
+| Question | Answer | Decision |
+|---|---|---|
+| The owner's question of 2026-10-04, raised with an external note on regulated-industry requirements: should the gateway be a central AI gateway for tools as well as models? | Yes, from Phase 1, as an MCP pass-through with defence in depth; bypass of the tool path is detected, not closed, until Phase 2 | D71 |
+
 ## 3. Architecture
 
 ### 3.1 Components and regions
@@ -191,14 +197,17 @@ flowchart TB
 **Components.** Everything is in UK South except the gateway, which is in UK West because no v2
 tier can be created in UK South at present, a limit Microsoft marks as temporary [apim-region]
 (D22). The agent endpoint, the gateway and salon-mcp all have public endpoints protected by Entra
-tokens (D52); private networking is out of scope and is recorded as a gap in section 11.
+tokens (D52); private networking is out of scope and is recorded as a gap in section 11. Every AI
+call the agent makes, to a model or to a tool, crosses the gateway (D71): it is the one governed
+boundary, and salon-mcp keeps its own checks behind it.
 
 ```mermaid
 flowchart LR
   caller[Test client or pipeline] -->|Entra token| agent[Salon agent: Foundry hosted agent, one project per tenant]
   agent -->|agent identity token| gw[Gateway: API Management Basic v2, UK West, removed nightly]
   gw -->|gateway managed identity| models[Model deployments, Global Standard, in their own Foundry resource]
-  agent -->|agent identity token| mcp[salon-mcp on Container Apps]
+  agent -->|agent identity token, salon-mcp audience| gw
+  gw -->|same token forwarded, tool rate limit| mcp[salon-mcp on Container Apps]
   mcp --> tables[(Table Storage: bookings, registry)]
   mcp --> search[(AI Search: one index per tenant, keyword)]
   mcp --> audit[(Audit table, persistent group)]
@@ -211,8 +220,8 @@ flowchart LR
 |---|---|---|---|
 | Salon agent | LangGraph graph hosted with `langchain_azure_ai.agents.hosting`, Responses protocol | Official hosting path; the platform supplies endpoint, identity, sessions and scaling | [lg-hosted], [ha] |
 | Conversation state | `FoundryCheckpointSaver` on Foundry's durable state store | Used to "persist LangGraph runtime state in Foundry's durable state store"; needs container protocol 2.0.0 | [lc-azure] |
-| Tool server | FastMCP on Azure Container Apps, Streamable HTTP | Reuses Azure-Samples/python-mcp-demos, which deploys FastMCP to Container Apps with azd | [mcp-demos] |
-| Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` | The only v2 tier creatable near UK South | [apim-region] |
+| Tool server | FastMCP on Azure Container Apps, Streamable HTTP, reached through the gateway's MCP pass-through (D71) | Reuses Azure-Samples/python-mcp-demos, which deploys FastMCP to Container Apps with azd; API Management exposes an existing MCP server on Basic v2 | [mcp-demos], [apim-mcp] |
+| Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` on the model path, and `validate-azure-ad-token`, `rate-limit-by-key` and `emit-metric` on the tool path (D71) | The only v2 tier creatable near UK South; the MCP pass-through is generally available on it | [apim-region], [apim-mcp], [apim-rate] |
 | Models | gpt-5.4-nano and gpt-5.4-mini in a Foundry resource that only the gateway's identity can call (D50) | Closes the implicit path from the agent's own project | [ha-perm], [model-regions] |
 | Bookings and audit | Azure Table Storage | Unique partition and row key; atomic batches within a partition; separate add, update and delete permissions | [table-insert], [table-egt], [table-authz] |
 | Knowledge | Azure AI Search, one index per tenant, keyword search (D45) | Microsoft's shared-service multitenant pattern | [search-mt] |
@@ -251,7 +260,7 @@ flowchart LR
   acr -->|"image pull by the project identity"| fagent
   fagent -->|"agent identity token"| gw
   gw -->|"gateway managed identity"| fmodel
-  fagent -->|"agent identity token"| aca
+  gw -->|"token forwarded, tool rate limit"| aca
   aca --> st
   aca --> srch
   aca -->|"append only"| evid
@@ -321,7 +330,8 @@ with quotations is section 5 of docs/council/04-spec-phase-0-1-principal-review.
 | Rollback | Selector moved to the recorded previous version | None | Release record names the previous version; restore record | None | 5.9, 9.2 |
 | Conversation and session | Responses conversation id; per-session sandbox bound to a version | Caller identity scopes the session | None | `gen_ai.conversation.id`, `turn_id` | 5.1 |
 | Conversation state | `FoundryCheckpointSaver` on the durable state store (preview, section 7) | The store resolves the user from the platform call id | None | None | 3.1, 5.1 |
-| salon-mcp | A downstream service reached through a project connection with `agentic-identity`, or by a direct call (S2) | App registration for its audience; the container app's workload identity | Deployed by the candidate job | `gen_ai.tool.name`; salon-mcp spans | 5.2, 6.2 |
+| salon-mcp | A downstream service reached through a project connection with `agentic-identity` whose target is the gateway's MCP endpoint (D71), or by a direct call (S2) | App registration for its audience; the container app's workload identity | Deployed by the candidate job | `gen_ai.tool.name`; salon-mcp spans; gateway tool metrics | 5.2, 5.4, 6.2 |
+| Gateway | None in Foundry; one API Management instance with an LLM API and an MCP server entity (D71) | The gateway's managed identity; the two app registrations | Policies in the repository, deployed by `up` | Token metrics and tool metrics | 5.4 |
 | Knowledge base | None; an AI Search index the MCP server queries, so the tenant boundary stays in one place | Workload identity with query rights | None | None | 5.5 |
 | Attribution keys | None; span attributes, five on the GenAI names (D59) | None | None | Read by the agent views | 5.6 |
 | Release | A version plus a selector move | None | Immutable GitHub Release with the record as an asset; release attestation | Eval result record | 5.9 |
@@ -355,12 +365,15 @@ sequenceDiagram
   G->>M: gateway managed identity, Cognitive Services OpenAI User
   M-->>G: completion
   G-->>A: completion; token metric emitted
-  A->>S: token for the salon-mcp audience
+  A->>G: token for the salon-mcp audience, MCP call
+  G->>G: validate-azure-ad-token, registry lookup, rate-limit-by-key, emit-metric
+  G->>S: same token forwarded
   S->>S: signature, issuer, tenant, audience, agent marker claim, registry lookup
   S->>D: workload identity with data roles; tenant_id from the lookup
   D-->>S: result
   S->>S: append one audit row
-  S-->>A: tool result
+  S-->>G: tool result
+  G-->>A: tool result
   A-->>F: response
   F-->>T: response
 ```
@@ -371,7 +384,8 @@ sequenceDiagram
 | 2. Pipeline to agent | Pipeline managed identity, by GitHub OIDC | Federated token; no stored secret [gh-oidc] | Same role, same scope | As hop 1 | A workflow outside the named environments, or from a branch other than `main`, gets no Azure token |
 | 3. Agent to gateway | The agent's own Entra agent identity, "created automatically at deploy time" [ha] | Token for the gateway's app audience | `validate-azure-ad-token` checks tenant directory, audience and that the caller is a registered agent identity [apim-auth] | Looked up from the caller's object id in the registry | No token: 401. Unregistered identity: 403. Direct call to a model: fails (spike S1) |
 | 4. Gateway to model | The gateway's managed identity | Token for Cognitive Services; role Cognitive Services OpenAI User on the model resource [apim-auth] | Azure RBAC on the model resource | Not applicable | The agent identity holds no role on the model resource |
-| 5. Agent to salon-mcp | The agent identity | Token for salon-mcp's app audience, obtained through a project connection with `agentic-identity` authentication and that audience, which is the documented path [mcp-auth]; a direct call from the graph's own code is what spike S2 proves (D60) | Signature, issuer, tenant directory, audience, expiry, and the agent marker claim `xms_par_app_azp` [mcp-entra], [agent-token]; v2 tokens only; the protected resource metadata document is served and referenced from 401 responses [mcp-entra] | Looked up from the caller's object id in the registry | Wrong audience: 401. Unregistered identity: 403. A tool call carrying a tenant_id is rejected by the tool schema |
+| 5a. Agent to the gateway's MCP endpoint (D71) | The agent identity | Token for salon-mcp's app audience, obtained through a project connection with `agentic-identity` authentication and that audience, whose target is the gateway's MCP endpoint [mcp-auth]; a direct call from the graph's own code is what spike S2 proves (D60) | `validate-azure-ad-token` for the salon-mcp audience and the registered caller [apim-mcp-sec]; registry lookup; `rate-limit-by-key` per tenant and agent [apim-rate]; `emit-metric` [apim-emit]; the token is forwarded unchanged [apim-mcp-sec] | Looked up from the caller's object id in the registry | No token: 401. Unregistered identity: 403. Over the tool rate: 429 |
+| 5b. Gateway to salon-mcp | The agent identity, in the forwarded token | The same token | Signature, issuer, tenant directory, audience, expiry, and the agent marker claim `xms_par_app_azp` [mcp-entra], [agent-token]; v2 tokens only; the protected resource metadata document is served and referenced from 401 responses [mcp-entra] | Looked up again from the caller's object id in the registry | Wrong audience: 401. Unregistered identity: 403. A tool call carrying a tenant_id is rejected by the tool schema. A call at salon-mcp's own address with a valid token succeeds: bypass is detected by the reconciliation check (section 5.4), not closed |
 | 6. salon-mcp to storage and search | salon-mcp's user-assigned managed identity [aca-mi] | Azure RBAC data roles | Table and index scoped roles; an add-and-read-only custom role on the audit table [table-authz]; read only on the registry | Passed in code from hop 5's lookup | Updating or deleting an audit row is refused by Azure |
 | 7. Owner and scripts to Azure | The owner's own Azure login (D20) | Interactive login | Azure RBAC as subscription Owner | Parameter to the admin script | None. See the accepted risk in section 11 |
 | 8. Nightly teardown to Azure | Teardown managed identity, by GitHub OIDC, in its own environment restricted to `main` | Federated token [gh-oidc] | A custom role: delete on the gateway and the two purge actions [apim-softdel] | Not applicable | Its attempt to delete anything else is refused |
@@ -384,7 +398,7 @@ What each identity holds (D42). Exact role definitions are for the implementatio
 | Pipeline identity | Push to the registry; `agents/write` on the tenant project, which creates a version and moves the selector [ha-perm]; deploy salon-mcp and gateway policies in the environment group; write release records | Purge rights; any role outside the two groups |
 | Teardown identity | Delete on the gateway; the two purge actions at subscription scope [apim-softdel]; read access for the nightly checks | Any right to create or change a resource |
 | Agent identity | Calls to the gateway and salon-mcp; implicit access within its own project [ha-perm] | Any role on the model resource |
-| Gateway managed identity | Cognitive Services OpenAI User on the model resource [apim-auth] | Anything else |
+| Gateway managed identity | Cognitive Services OpenAI User on the model resource [apim-auth]; nothing on salon-mcp, because it forwards the caller's token | Anything else |
 | salon-mcp workload identity | Read and write on bookings and catalogue; read on the registry; query on the tenant indexes; add and read on the audit table [table-authz] | Update or delete on the audit table; write on the registry |
 | Named test identities | Foundry Agent Consumer on the agent [ha-perm] | Anything else |
 
@@ -414,6 +428,15 @@ Notes on the design:
   with two registered identities and two tenants' data shows that one tenant's identity cannot read
   or write the other's bookings or index (D49). Tests against real infrastructure arrive in
   Phase 2. This is the pooled model. A silo per tenant is in the optional backlog (Phase 6).
+- **salon-mcp sits behind the gateway and keeps its own checks (D71).** The gateway is the one
+  governed boundary for models and tools, which is Microsoft's AI gateway pattern for MCP servers
+  [apim-mcp]. It adds policy, not a closed path: the v2 tiers run "on a shared infrastructure and
+  without a deterministic IP address" [apim-ip], so Container Apps IP restrictions [aca-ip] cannot
+  lock salon-mcp to it, and the Well-Architected guidance that back ends "should only accept
+  traffic from the API gateways and should block all other traffic" [waf-apim] is met in Phase 2
+  by Standard v2 with virtual network integration [apim-v2], at £0.7237 an hour against £0.1551
+  [prices]. Until then a nightly reconciliation check compares salon-mcp's audit rows with the
+  gateway's request logs and fails on a call the gateway did not see.
 - **salon-mcp makes no model call in Phase 1.** Keyword retrieval needs no embedding, so the
   draft's hop from salon-mcp to the gateway, which asserted the tenant in a header, is gone (D45).
 - **Customer authorisation (D33).** A cancellation needs the booking reference and the contact
@@ -502,8 +525,8 @@ sequenceDiagram
 
 ### 5.2 salon-mcp
 
-FastMCP 4 on Container Apps, reusing the azd and Container Apps layout of python-mcp-demos
-[mcp-demos]. The sample's own Entra setup is "FastMCP's built-in Azure OAuth proxy", a user sign-in
+FastMCP 4 on Container Apps, reached through the gateway's MCP pass-through (D71, section 5.4),
+reusing the azd and Container Apps layout of python-mcp-demos [mcp-demos]. The sample's own Entra setup is "FastMCP's built-in Azure OAuth proxy", a user sign-in
 flow [mcp-demos-readme], and it pins FastMCP 3 [mcp-demos-lock], so neither its authentication nor
 its versions are reused (D61). The default scale rule is HTTP with a minimum of zero replicas
 [aca-scale], so it costs nothing while idle. The graph's nodes call the server with the `mcp`
@@ -575,6 +598,23 @@ Policies live in the repository and are deployed with the gateway each time `up`
 - **No product or subscription key per tenant.** The intent's section 6 mentions a gateway product.
   This design does not create one: the caller's Entra identity already identifies the tenant, and a
   subscription key would be a shared secret to store and rotate.
+- **Tool path (D71).** The same instance exposes salon-mcp as an existing MCP server over
+  Streamable HTTP [apim-mcp]. Inbound: `validate-azure-ad-token` for salon-mcp's audience and the
+  registered caller [apim-mcp-sec]; the registry lookup; `rate-limit-by-key` with the counter key
+  set to tenant and agent together, 60 calls in 60 seconds as the starting figure and a deploy
+  parameter, returning 429 when exceeded [apim-rate]; `emit-metric` with the dimensions
+  tenant_id, agent_id and environment [apim-emit]. The token is forwarded unchanged: "Request
+  headers are automatically forwarded (with certain exclusions) to MCP tool invocations"
+  [apim-mcp-sec], and spike S1 checks that the `Authorization` header is among them. Policies
+  "apply to all API operations exposed as tools in the MCP server" [apim-mcp-overview], so the
+  tool name is not a policy dimension; salon-mcp's audit row carries it. The pass-through supports
+  tools and resources, not prompts, and needs MCP 2025-06-18 or later [apim-mcp], which FastMCP 4
+  on the 2026-07-28 specification meets (section 7).
+- **The reconciliation check (D71).** salon-mcp's own address stays reachable with a valid token,
+  because the gateway has no fixed outbound address on the v2 tiers [apim-ip]. The nightly
+  workflow counts salon-mcp's audit rows and the gateway's MCP requests for the day and fails on
+  a difference, which turns a bypass into a detected event. Closing the path is the Phase 2 lock
+  described in section 4.
 
 Limits to state plainly: counters are kept per gateway; "concurrent or near-concurrent requests
 can temporarily exceed the configured token limit"; and without prompt estimation the request that
@@ -881,7 +921,7 @@ candidate to nobody until promotion; a canary is a Phase 2 option.
   resources. The purge of a Foundry resource needs Contributor at subscription level [purge]. It
   is used for spike S5 and the stranger test.
 - **Nightly workflow.** Runs the default `down` each evening with the teardown identity, checks
-  that no gateway remains, and runs the served-image and registry checks. A forgotten gateway
+  that no gateway remains, and runs the served-image, registry and reconciliation checks (D71). A forgotten gateway
   costs at most one day of its hourly price. A failed run fails the workflow, which GitHub reports
   to the owner.
 
@@ -996,9 +1036,13 @@ agent, and can it be mapped to a tenant?
   appears within five minutes; (2) exceeding the rate returns 429 and exceeding the quota returns
   403 [apim-limit]; (3) the documented paths from the agent identity to a model are closed: the
   project endpoint, the account endpoint and the Toolbox; (4) the path can be built from the
-  repository with no portal step, since it is rebuilt every working day.
+  repository with no portal step, since it is rebuilt every working day; (5) the MCP pass-through
+  forwards the agent's token unchanged, salon-mcp accepts it, an unregistered identity is refused
+  at the gateway with 403, and the tool rate limit returns 429 (D71).
 - Also recorded, not a go criterion: whether the quota counter survives a delete, purge and
-  recreate of the gateway. D39 assumes it does not.
+  recreate of the gateway, which D39 assumes it does not; whether a call at salon-mcp's own address
+  with a valid token still succeeds, which D71 expects; and the number of tool calls in one gate
+  run, which sets the tool rate limit.
 - No-go fallback: if test 3 fails, keep the gateway for metering and budget on the intended path,
   add a check that compares model usage with gateway usage, and downgrade the claim from "cannot be
   bypassed" to "bypass is detected". Network egress controls on the hosted agent, in preview
@@ -1006,7 +1050,7 @@ agent, and can it be mapped to a tenant?
   the permissions reference lists a model deployment in the account among a hosted agent's
   required resources [ha-perm]. Foundry's AI Gateway is built only if test 3 fails and the desk
   check found a route with no portal step, which review 04 did not.
-- Can change: sections 3.1, 3.2, 4 (hops 3 and 4) and 5.4.
+- Can change: sections 3.1, 3.2, 4 (hops 3, 4 and 5) and 5.4.
 
 **S3. Durable checkpointer (0.5 day).** Does a paused confirmation survive losing the container?
 
@@ -1142,6 +1186,9 @@ two gate runs do not fit in a day the owner chooses the quota again with the mea
   hours, which brings the limit down to about 135 hours.
 - If S3 falls back to Cosmos DB serverless, add pence.
 - Spike S1 now builds one gateway, not two, so the draft's one-off £5.60 does not arise.
+- The tool path through the gateway adds no item: the MCP server entity, its policies and its
+  metrics bill nothing beyond the hours the gateway exists (D71). Standard v2, the Phase 2 lock, is
+  £0.7237 an hour [prices], £97.70 at 135 hours, which is why the lock is a budget decision.
 - A Cost Management budget of £40 covers both resource groups, with alerts at 50, 80 and 100 per
   cent of actual cost and at 100 per cent of forecast [budget]. Budgets notify only: "none of your
   resources are affected and your consumption isn't stopped" [budget-bicep]. The nightly teardown
@@ -1196,6 +1243,7 @@ council has reviewed the change.
 | Customer authorisation | Reference and contact together cancel the booking | A wrong contact detail is refused | Audit rows |
 | Append-only audit | salon-mcp adds a record | Its update and delete attempts are refused by Azure | Refused requests |
 | Gateway budget | A call is served and metered by tenant and agent | Over the rate: 429. Over the quota: 403, shown with the low-quota test identity. A direct model call fails | Metrics and refused requests |
+| Tool path through the gateway (D71) | A tool call through the gateway is served, rate-limited and metered by tenant and agent | Over the tool rate: 429. An unregistered identity: 403 at the gateway. A call at salon-mcp's own address is caught by the reconciliation check | Metrics, refused requests and a check run |
 | Attribution | A trace shows all nine keys on every span the agent emits, and salon-mcp spans join it on the trace id | A query for agent spans missing any key returns none | Saved query |
 | Grounded answers | An FAQ answer cites only ids that were returned | A question with no source gets "I do not know"; an answer citing an id that was not returned is refused | Unit test and eval results |
 | Guardrail | A normal prompt gets HTTP 200 | An attack prompt gets HTTP 400 `content_filter`; a poisoned passage leads to no tool call | Pipeline run and unit test |
@@ -1220,7 +1268,7 @@ outside these criteria (D32).
 | 0 | 1 | Bootstrap, IaC skeleton, CI with OIDC, repository protections, spikes S2 then S1, cost measurement |
 | 0 | 2 | Spikes S3 to S6, hooks, skills, verifier, REVIEW.md, seed eval set, ADRs, spec update, council gate |
 | 1 | 1 | salon-mcp, data model, tenant module, agent graph running locally with tests, including the two-tenant test, the architecture contracts and the mutation check |
-| 1 | 2 | Hosted agent, gateway policies, telemetry and attribution, guardrail, the Defender trial (D66) |
+| 1 | 2 | Hosted agent, gateway policies for the model and tool paths (D71), telemetry and attribution, guardrail, the Defender trial (D66) |
 | 1 | 3 | Eval gate and scripted write tests, release pipeline with attestation, rollback drill, Workbook, exit demonstrations, council gate |
 
 If a time-box is at risk, scope is cut in the order below and the date holds (D30, D48).
@@ -1266,6 +1314,9 @@ Accepted by the owner:
   because data is synthetic (D29). The path for real data is regional or provisioned deployment.
 - **Provisioning outside the pull request trail (D25).**
 - **Keyword-only retrieval (D45).** A quality cut that has not been measured.
+- **Tool-path bypass is detected, not closed (D71).** salon-mcp stays reachable at its own address
+  with a valid token until Phase 2 locks it behind Standard v2 with virtual network integration.
+  The reconciliation check turns a bypass into an alert, not a refusal.
 
 Design risks:
 
@@ -1291,12 +1342,26 @@ Design risks:
 | Tool and policy changes reach the served agent before promotion | Tool schemas pinned in the eval set; separate revisions in Phase 2 |
 | Six spikes overrun | Fixed time-boxes with fallbacks; a Phase 0 cut order (D48) |
 
+**Regulated-industry requirements, and where the design meets them.** Recorded at the owner's
+request on 2026-10-04 against an external note; the gateway as the one boundary for models and
+tools is D71.
+
+| Requirement | Where it is met | Gap and path |
+|---|---|---|
+| Strong identity: Entra tokens, audience validation, least-privilege identities, authorisation at the gateway and at the service | Section 4: every hop, the role table, the gateway's checks and salon-mcp's checks (hops 5a and 5b) | None |
+| No bypass of the gateway | Model path closed by the model resource's role assignments (S1); tool path governed at the gateway and watched by the reconciliation check | Tool path closed in Phase 2 by Standard v2 with virtual network integration |
+| Private networking | Out of scope by decision (D52) | Phase 2, with the lock above |
+| Auditable operations: central logs, correlated traces, a protected audit trail | 5.6: one workspace, W3C trace context, nine keys; 5.3: the append-only audit table; 5.9: immutable Releases | None |
+| Resilience | Not a goal (intent section 8); the gateway is a deliberate single point, rebuilt nightly and proven by S5 | High availability in later phases |
+| Data protection: logging, retention, residency, access to prompts and outputs | 5.6: content recording off and retention stated; D29 synthetic data; D34 residency gap recorded; D66 Defender trial | Regional or provisioned deployment before real data |
+
 ## 12. Open questions
 
-For the owner: none are open from this gate. Two come back with measurements:
+For the owner: none are open from this gate. Three come back with measurements:
 
 - the daily token quota, once spike S6 has measured a gate run (D39);
-- the search tier, once spike S4 has run (D27).
+- the search tier, once spike S4 has run (D27);
+- the tool rate limit, once spike S1 has counted the tool calls in a gate run (D71).
 
 For the implementation plan:
 
@@ -1311,10 +1376,19 @@ For the implementation plan:
 
 ## 13. References
 
-All opened on 2026-10-03.
+All opened on 2026-10-03; the rows added for D71 were opened on 2026-10-04.
 
 | Key | Source |
 |---|---|
+| [apim-mcp] | https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server |
+| [apim-mcp-sec] | https://learn.microsoft.com/azure/api-management/secure-mcp-servers |
+| [apim-mcp-overview] | https://learn.microsoft.com/azure/api-management/mcp-server-overview |
+| [apim-rate] | https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy |
+| [apim-emit] | https://learn.microsoft.com/azure/api-management/emit-metric-policy |
+| [apim-ip] | https://learn.microsoft.com/azure/api-management/api-management-howto-ip-addresses |
+| [apim-v2] | https://learn.microsoft.com/azure/api-management/v2-service-tiers-overview |
+| [waf-apim] | https://learn.microsoft.com/azure/well-architected/service-guides/azure-api-management |
+| [aca-ip] | https://learn.microsoft.com/azure/container-apps/ip-restrictions |
 | [ha] | https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents |
 | [ha-perm] | https://learn.microsoft.com/en-us/azure/foundry/agents/concepts/hosted-agent-permissions |
 | [ha-price] | https://azure.microsoft.com/en-gb/pricing/details/foundry-agent-service/ |
