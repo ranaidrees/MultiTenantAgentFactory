@@ -112,7 +112,7 @@ Week 1 local slice; week 2 end to end in Azure; week 3 gateway and identity; wee
 - Region: hosted agents are listed for UK South, current models are Global Standard there, and the gateway is in UK West (intent D22, D34). Still to confirm in the portal.
 - Adapter churn: pin versions; isolate the adapter behind one module.
 - Preview dependencies: ai-agent-evals v3-beta, AI Search knowledge base MCP, APIM MCP on v2 tiers; keep fallbacks.
-- Private networking: hosted agent endpoints remain public; rely on Entra auth and state it. Callers reach the agent through the gateway as a pass-through, gated by a Phase 0 spike; bypass is detected, not closed (intent D80).
+- Private networking: hosted agent endpoints remain public; rely on Entra auth and state it. Callers reach the agent through the gateway as a pass-through, gated by a Phase 0 spike; the path is governed, not closed (intent D80).
 - Cost: only the gateway bills for existing, so it is removed nightly (intent D37), under a ceiling of £40 a month (D21). Rates and usage tables are in section 8 of docs/spec-phase-0-1.md. A Langfuse VM is a Phase 6 matter.
 - Token limit accuracy: llm-token-limit counts prompt and completion tokens, counters are per gateway, concurrent requests can briefly exceed limits.
 - Langfuse data residency: traces contain personal data; mask at the collector.
