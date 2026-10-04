@@ -116,7 +116,7 @@ Partitioning rules, encoded as import contracts in step 0.17: `salon_agent` neve
 | Convention | Choice | Source |
 |---|---|---|
 | Python | 3.11, which langchain-azure-ai 1.2.10 requires (`>=3.11,<4.0`) | [lc-pyproject] |
-| Packaging | uv workspace; `uv sync --locked` in CI, which "will exit with an error" if the lockfile is stale; `uv run maf ...` for every command, which needs a build system for `[project.scripts]` | [uv-sync], [uv-config] |
+| Packaging | uv workspace; `uv sync --locked` in CI, where "uv will raise an error instead of updating the lockfile" if it is stale; `uv run maf ...` for every command, which needs a build system for `[project.scripts]` | [uv-sync], [uv-config] |
 | Pins (all current on PyPI today) | langgraph 1.2.12; langchain-azure-ai 1.2.10 with the hosting extra; azure-ai-agentserver-core 2.2.0 and azure-ai-agentserver-responses 2.2.0, which supersede the spec's 2.1.0b2 because the extra is a floor, not a pin, and `uv lock` resolves to the stable 2.2.0; mcp 2.3.0; fastmcp 4.0.10; azure-ai-projects 2.7.0; azure-identity 1.26.0; azure-data-tables 12.7.0; azure-search-documents 12.0.0; azure-monitor-opentelemetry 1.8.10; opentelemetry-sdk 1.45.0; pytest 9.1.1; pytest-bdd 9.0.0 (fallback 8.1.0); pytest-cov 7.1.0; coverage 7.16.2; ruff 0.16.10; import-linter 2.15; mutmut 3.8.0; pydeps 3.0.9; radon 6.0.1 | [pypi], [lc-pyproject] |
 | Lint and complexity | ruff with C901 at `max-complexity = 10` as the gate; radon for the report (section 9.6) | [ruff-c901], [radon] |
 | Tests | pytest; feature files with pytest-bdd, scenarios bound with `scenarios()`; markers `@gate`, `@golden`, `@slow` | [pytest-bdd] |
@@ -245,7 +245,7 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 
 - Files: `agents/salon/src/salon_agent/hosting.py` (the checkpointer selection), `docs/adr/0003-spike-s3-checkpointer.md`.
 - Does: `hosting.py` compiles the graph with `FoundryCheckpointSaver()` when the platform variables (`FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_AGENT_SESSION_ID`) are present and `MemorySaver()` otherwise, which the LangChain page shows for local testing [lg-hosted], [lc-azure]; start a booking, stop at the interrupt, wait past the 300-second idle timeout, approve.
-- Proof: exactly one booking row after the resume; the ADR records it. Note the discrepancy for the ADR: Microsoft's sample constructs `FoundryCheckpointSaver(user_isolation=True)` unconditionally and says it uses "a local file-backed store during local development" [sample-main], while the langchain-azure README says "Use an in-memory or database-backed LangGraph saver for local development" [lc-azure]; the spike tries both and keeps the one that passes.
+- Proof: exactly one booking row after the resume; the ADR records it. Note the discrepancy for the ADR: Microsoft's sample constructs `FoundryCheckpointSaver(user_isolation=True)` unconditionally [sample-main], and its README says the saver uses "a local file-backed store during local development" [sample-readme], while the langchain-azure README says "Use an in-memory or database-backed LangGraph saver for local development" [lc-azure]; the spike tries both and keeps the one that passes.
 - Owner: `login`. Azure writes: none new. Risk: no-go leads to `CosmosDBSaver` on Cosmos DB serverless at £0.2242 per million request units [prices].
 
 ### Step 0.13 Spike S4: search on the free tier with roles only (0.25 day)
@@ -521,7 +521,7 @@ lists trace evaluation by region. These checks move to the Phase 2 spike that bu
 |---|---|---|---|---|
 | Mutation testing | mutmut 3.8.0, on the ubuntu runner | `[tool.mutmut] source_paths = [the five control modules]`, `mutmut run`, `mutmut export-cicd-stats`; the score computed from the JSON by `maf check mutation-score` | Measured first in step 0.17; the threshold is the measured score minus five points, floored at 70 and raised in later pull requests; the starting expectation is 80 | [mutmut], [mutmut-src] |
 | Complexity gate | ruff 0.16.10, rule C901 | `[tool.ruff.lint.mccabe] max-complexity = 10` | 10 per function | [ruff-c901] |
-| Complexity report | radon 6.0.1 | `radon cc -a -s` into the job summary | Report only; radon supports "Python 2.7 to Python 3.12" and has no release since 2023, so it is a report, not a gate | [radon] |
+| Complexity report | radon 6.0.1 | `radon cc -a -s` into the job summary | Report only; radon's README lists support up to Python 3.12 and it has had no release since 2023, so it is a report, not a gate | [radon] |
 | Coverage | pytest-cov 7.1.0 and coverage 7.16.2 | `--cov=<control packages> --cov-branch --cov-fail-under=90` | 90 per cent branch coverage on the control modules only | [pytest-cov], [coverage] |
 | Import contracts | import-linter 2.15 | `[tool.importlinter]` with `include_external_packages = true` and the contracts: forbidden (`salon_mcp` to `salon_agent`, `openai`, `langchain`, `langgraph`), forbidden (`salon_agent` to `salon_agent.hosting`, ignoring `hosting.py`), independence (`maf`, `salon_agent`, `salon_mcp`) | Exit code 1 fails the check | [import-linter], [import-linter-forbidden] |
 | BDD runner | pytest-bdd 9.0.0, released 2026-09-30 | `bdd_features_base_dir = tests/features`, `scenarios()` | Fallback 8.1.0 if 9.0.0 breaks | [pytest-bdd], [pytest-bdd-changes] |
@@ -1155,6 +1155,7 @@ that was read.
 | [lg-hosted] | https://learn.microsoft.com/azure/foundry/how-to/develop/langchain-hosted-agents |
 | [lg-mermaid] | https://docs.langchain.com/oss/python/langgraph/use-graph-api |
 | [sample-main] | https://raw.githubusercontent.com/microsoft-foundry/foundry-samples/main/samples/python/hosted-agents/langgraph/responses/07-human-in-the-loop/src/langgraph-human-in-the-loop-responses/main.py |
+| [sample-readme] | https://raw.githubusercontent.com/microsoft-foundry/foundry-samples/main/samples/python/hosted-agents/langgraph/responses/07-human-in-the-loop/README.md |
 | [sample-dockerfile] | https://raw.githubusercontent.com/microsoft-foundry/foundry-samples/main/samples/python/hosted-agents/langgraph/responses/07-human-in-the-loop/src/langgraph-human-in-the-loop-responses/Dockerfile |
 | [sample-langgraph] | https://raw.githubusercontent.com/microsoft-foundry/foundry-samples/main/samples/python/hosted-agents/langgraph/responses/07-human-in-the-loop/src/langgraph-human-in-the-loop-responses/langgraph.json |
 | [manage] | https://learn.microsoft.com/azure/foundry/agents/how-to/manage-hosted-agent |
