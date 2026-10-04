@@ -934,7 +934,8 @@ reason, are in the Definition of good (section 5.11). Spike S6 proves the plumbi
 damaged and a subtly regressed version of the spike graph; the five baseline runs are of the
 bootstrap release of the real graph, before any promotion is gated (D76); each threshold is set at
 the mean minus two run-to-run standard deviations, and this section is updated to state the
-smallest regression the gate detects. With
+smallest regression the gate detects. The day of those runs uses the
+3,000,000-token quota of the spike day, restored to 150,000 afterwards (D85). With
 50 rows per judged intent the standard error of a pass rate of 0.90 is about 0.042, so a drop of
 about 8 points is the best the judged rows can resolve; with the 20 rows of the previous draft it
 was about 13. Until the measured figures are in, the claim is limited to gross failures.
