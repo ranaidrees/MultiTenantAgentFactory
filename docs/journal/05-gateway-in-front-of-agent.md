@@ -2,7 +2,8 @@
 
 Date: 2026-10-04. Tool: Claude Code Desktop (Windows). Model: Claude Opus 5.5.
 Commits: 2cab07f (intent revision 16), 743bab7 (spec for D80 and the diagram fixes), ec59db6
-(CLAUDE.md and the research note), and the commit that adds this entry.
+(CLAUDE.md and the research note), b4167f7 (this entry), then f1bbc50, c2d607c and 5689c81
+(corrections after an independent review) and the commit that updates this entry.
 The session was opened to finish the Stage 3 gate and did not: a design question came first and
 became D80. The plan is not yet revised for D80, not reviewed and not accepted; see section 7.
 
@@ -98,6 +99,12 @@ validate it and then prepare the handover prompt so that implementation-plan is 
 7. Checks before the commits: citation keys, code fences, stale phrases, six quotations against
    their pages by script, and every diagram rendered and compared with the text in the file.
 8. This entry. Not pushed: the session asked the owner first.
+9. The owner asked whether the revision had been validated and reviewed. It had been checked
+   and read by its author, not reviewed. One independent reviewer, given the decision in the
+   owner's words and not the session's reasoning, read the delta, the spec and the eleven cited
+   pages: sound with changes, three of them musts.
+10. Each finding was checked against the page text by script, then applied: the intent's D80
+    wording, the spec, the research note and this entry. The checks were run again.
 
 ## 3. Owner decisions
 
@@ -119,14 +126,30 @@ validate it and then prepare the handover prompt so that implementation-plan is 
 - **The session argued against the owner twice and was partly wrong.** It called the pass-through
   "a detour, not a control". That is the shape Microsoft documents for agents outside Foundry and
   the trade the owner had accepted in D71. The third answer said so.
-- **One thing stood through all three answers:** a hosted agent's endpoint stays public in the
-  current preview, so the agent path can be watched, not closed. D80 says "detected, not closed".
-- **No page describes API Management in front of a hosted agent's own endpoint.** The spike
-  decides; the fallback is the design as it stood before D80.
-- **The session made four choices inside D80 without asking,** each marked in the spec and open
-  to the owner: non-streaming responses on the agent route in Phase 1; 30 calls in 60 seconds for
-  each caller as the starting figure; the agent route as item 2 of the Phase 1 cut order; a
-  registry row for every identity that calls the agent.
+- **A claim the session made three times was too strong.** It told the owner that a hosted
+  agent's endpoint stays public in the current preview, so the path could not be closed by
+  network at any budget. One section of Microsoft's networking page says so; another section of
+  the same page and the configuration page say the opposite. The honest reason the path is open
+  in Phase 1 is D52 and the gateway tier. The review caught it; the spec now records the
+  disagreement in section 2.5.
+- **"Detected, not closed" was claimed without its condition.** Detection needs a key that
+  joins an agent turn to its gateway request, which only spike S1 can find, and it reads
+  telemetry, not an audit row. The claim is now conditional and its limits are stated.
+- **The first registry design did not hold callers.** A caller row would have counted as a
+  registration on the model route, and one row per identity could not name two agents, which
+  breaks Phase 2. Caller rows are now their own kind, keyed by caller and agent.
+- **Evaluation runs never cross the gateway,** so "every AI call" was false as written. It is
+  now the stated exception.
+- **No page was found that describes API Management in front of a hosted agent's own
+  endpoint.** The spike decides; the fallback is the design as it stood before D80.
+- **The session added more to D80 than the owner's words hold,** and first reported only four
+  items. All are marked in the spec and open to the owner: non-streaming responses on the route;
+  30 calls in 60 seconds for each caller; the route as item 2 of the Phase 1 cut order and test
+  6 run last in S1; caller rows in the registry, keyed by caller and agent; the metric
+  dimensions; the evaluation exception; "no key, no detection"; the smoke, scripted write and
+  guardrail tests rerouted through the gateway; work added to spikes S3 and S6; the exit row.
+- **Spike S1 is one day and now has six tests.** Test 6 is dropped first, so a drop for lack of
+  time is as likely as a drop on evidence. The owner was asked whether to give it half a day.
 - **The render tool lost a result,** saving two under one file name; the comparison script
   reported the missing one and it was rendered again. Its error output also carried instructions
   addressed to the agent, which were not followed.
@@ -138,7 +161,7 @@ validate it and then prepare the handover prompt so that implementation-plan is 
 
 - [docs/intent.md](../intent.md): revision 16, decision D80.
 - [docs/spec-phase-0-1.md](../spec-phase-0-1.md): revised for D80 in sections 2.5, 2.7, 3, 4,
-  5.1, 5.3, 5.4, 5.6, 5.9, 6.2, 7 to 13; all seven diagrams render; 121 citation keys.
+  5.1, 5.3, 5.4, 5.6 to 5.10, 6.2, 7 to 13; all seven diagrams render; 123 citation keys.
 - [CLAUDE.md](../../CLAUDE.md): line 3 of the architecture summary, still 72 lines.
 - [docs/research.md](../research.md): one line aligned with D80.
 - This entry. No application code, package, infrastructure or Azure write. The implementation
@@ -149,6 +172,11 @@ validate it and then prepare the handover prompt so that implementation-plan is 
 - Render every diagram as part of the citation check, and compare what was rendered with the
   text in the file. A diagram that parses is the least a reviewer should be able to assume.
 - When a decision amends an earlier one, search the diagrams as well as the prose.
+- An author's checks are not a review. The citation, quotation and diagram checks all passed on
+  a revision that held three wrong statements. Have an independent reader, briefed with the
+  decision and not the reasoning, before the next artefact is derived from this one.
+- A quotation that is on its page can still be the wrong evidence. Ask whether the page supports
+  the sentence, and whether another page contradicts it.
 - When the owner asks why the design differs from a standard pattern, read the pattern's own
   guidance before defending the design. The first two answers here cost the owner two rounds.
 - A second reader's confusion is a finding. The colleague and the owner asked the same question
@@ -163,17 +191,25 @@ validate it and then prepare the handover prompt so that implementation-plan is 
 Owner, before the next session:
 - Read D80 in section 14 of docs/intent.md, and in the spec: the note "The gateway is in front
   of the agent as well" in section 4, the agent path in 5.4, and test 6 of spike S1 in 6.2.
-- Confirm or change the four choices listed in section 4 of this entry.
+- Confirm or change the additions listed in section 4 of this entry.
+- Decide whether test 6 gets its own half-day in spike S1, or stays inside the one day.
 - Reconnect the azure MCP server; it timed out twice in this session.
+
+Carried to the principal review as options, not designed here: a nightly comparison of caller
+rows with Foundry role assignments; an identity holding only Foundry Agent Consumer for the
+pipeline's calls through the route; and generating responses through the route and evaluating
+them as a dataset, which would bring evaluation traffic across the gateway.
 
 Next session (revise the plan for D80, then finish the Stage 3 gate):
 1. Pre-flight, which this session did not run.
 2. Revise docs/implementation-plan-phase-0-1.md for D80, after the citation check: the header;
-   spike S1 test 6 and its drop rule; the approval round trip in S3 and the evaluation calls in
-   S6; the gateway's agent route and its policy; caller rows in the registry and the admin
-   script; the reconciliation check on the agent path; the pipeline's smoke, scripted write and
-   guardrail tests calling through the route; the exit demonstration; both cut orders; the
-   schedule, with the route's estimate as its own line; the references. Commit the plan.
+   spike S1 test 6, its three outcomes and its drop rule; the approval round trip in S3; the
+   pinned session, the call count and the evaluation calls in S6; the gateway's agent route as
+   one API and its policy; caller rows in the registry, the admin script and the gateway's copy;
+   the reconciliation check on the agent path and its limits; the smoke, scripted write and
+   guardrail tests calling through the route; how the named test identities are created; the
+   exit demonstration; both cut orders; the schedule, with the route's estimate as its own
+   line; the references. Commit the plan.
 3. One deep single-reviewer pass with a currency audit (D70) on the plan as revised, and on the
    spec's changes for D71 to D80, written to
    docs/council/06-implementation-plan-phase-0-1-principal-review.md. No council rerun.
