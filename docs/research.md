@@ -117,7 +117,7 @@ Week 1 local slice; week 2 end to end in Azure; week 3 gateway and identity; wee
 - Token limit accuracy: llm-token-limit counts prompt and completion tokens, counters are per gateway, concurrent requests can briefly exceed limits.
 - Langfuse data residency: traces contain personal data; mask at the collector.
 - Model path: a standalone API Management gateway, tested by a Phase 0 spike, with Foundry's AI Gateway as a desk check (intent D23, D47).
-- Toolbox or direct calls to MCP servers: the documented path, a project connection with agentic-identity authentication and an audience, is tested first; the direct call from the graph is what spike S2 proves (intent D52, D60).
+- Toolbox or direct calls to MCP servers: the documented path, a project connection with agentic-identity authentication and an audience, is tested first; the direct call from the graph is what spike S2 proves (intent D52, D60); the connection targets the gateway's MCP pass-through (intent D71).
 
 ## Sources
 - Foundry hosted LangGraph agents: https://learn.microsoft.com/en-us/azure/foundry/how-to/develop/langchain-hosted-agents

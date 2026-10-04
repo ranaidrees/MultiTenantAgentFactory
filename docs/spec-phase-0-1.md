@@ -137,7 +137,7 @@ the Azure Retail Prices API at the gate and are in section 8. What remains:
 | How a hosted agent's code obtains a token for a custom audience | The in-container credential is documented only for the Foundry scope [migrate-preview]; the documented path is a project connection with an audience [mcp-auth] | Spike S2, connection route first (D60) |
 | Whether role-based access works on the Search Free tier | Three pages disagree [search-roles], [search-keyless], [search-index] | Spike S4 |
 | Whether the gate step can read the Action's result | The Action's code writes only to the job summary, but it targets the version through the project evaluation API, which returns results a script can read [eval-action-code], [eval-targets] | Spike S6 runs both routes (D56) |
-| Whether a trace evaluation of the scripted conversations runs from a UK South project | Batch evaluations are listed for UK South; trace evaluation is not named by region [eval-regions], [foundry-mcp-tools] | Spike S6 (D58) |
+| Whether a trace evaluation of the scripted conversations runs from a UK South project | Batch evaluations are listed for UK South; trace evaluation is not named by region [eval-regions], [foundry-mcp-tools] | Withdrawn for Phase 1 (D77); the Phase 2 eval twin spike |
 | Whether two `FixedRatio` rules split traffic | Two pages say "Traffic splitting between versions isn't supported" [ha], [manage]; a preview page documents a 90/10 canary [azd-prod] | Five minutes in spike S5 |
 | The price of the evaluations meter and of Defender for AI Services after its trial | The pricing pages render no figure | Not a planning assumption; Defender is disabled before its trial ends (D66) |
 
@@ -147,7 +147,7 @@ Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md.
 
 | Finding | Answer | Decision |
 |---|---|---|
-| F1: the eval gate's statistics and harness route | 50 rows per judged intent; five baseline runs; the project API alongside the Action; the write intents judged on their traces | D56, D57, D58 |
+| F1: the eval gate's statistics and harness route | 50 rows per judged intent; five baseline runs; the project API alongside the Action; the write intents judged on their traces (D58, withdrawn for Phase 1 by D77) | D56, D57, D58 |
 | F2: preview and beta parts missing from section 7 | Added with pins; the `mcp` client answers the open question | D61 |
 | F3: the identity path | Connection route tested first; v2 tokens and the metadata document on salon-mcp | D60 |
 | F4: diagrams and mapping | Six views and a mapping to the platform added | None |
@@ -992,7 +992,7 @@ demonstration script.
 | Intent resolution on the single-turn rows | At least 0.95 | Four intents and a small model; a classifier below 0.95 is a prompt bug, not noise |
 | Groundedness on the FAQ rows | At least 0.90 | The answering node sees only returned passages; a failure is the model ignoring them |
 | "I do not know" on the 10 unanswerable rows | At least 9 of 10, and zero fabricated citations | The citation check makes a fabricated citation structurally impossible; the measure is whether the model declines rather than answers from memory |
-| Scripted write conversations | 6 of 6, and their traces pass task completion where S6 shows it runs | Deterministic; any failure blocks |
+| Scripted write conversations | 6 of 6; their traces are judged on an eval twin in Phase 2 (D77) | Deterministic; any failure blocks |
 | p95 latency per turn | Measured in S6; then the baseline p95 times 1.5 | Two model calls and one tool call; a fixed figure would hide a threefold regression on a short baseline |
 | Tokens per conversation | Baseline plus 25 per cent, per intent | FAQ and book differ by design |
 | Cost per conversation | Reported, not gated, in Phase 1 | Derived from tokens and the prices in section 8; gated once a baseline exists |
@@ -1250,7 +1250,7 @@ what remains afterwards.
 | Protected main | A pull request with green checks merges | A direct push is rejected | Repository settings and a rejected push |
 | Approval gate | An approved job proceeds | An unapproved job waits; a rejected one stops | Environment approval record |
 | Pinned Actions | Workflows run with every Action at a full SHA and a read-only default token | A workflow that references an Action by tag is refused by the repository setting | Workflow files and the refused run |
-| Control tests detect mutations | The mutation score on the control modules meets its threshold | A mutated control module fails the pull request check | Check output |
+| Control tests detect mutations | The mutation check runs on the spike code in Phase 0; the control-module threshold is measured in Phase 1 week 1 (D79) | A mutated spike module fails the pull request check | Check output |
 | Architecture contracts | Imports follow the contracts; the committed graph rendering matches the code | A breaking import fails the check; a changed graph without a spec change fails the check | Check output |
 | Secrets hook and scanning | Normal writes pass | A planted fake key is blocked by the hook and by push protection | Hook log |
 | Test-edit hook | Tests can be edited in a test task | A test edit during a fix is blocked | Hook log |

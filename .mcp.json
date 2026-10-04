@@ -11,7 +11,7 @@
     "azure": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@azure/mcp@3.0.0-beta.49", "server", "start"]
+      "args": ["-y", "@azure/mcp@2.0.5", "server", "start"]
     }
   }
 }

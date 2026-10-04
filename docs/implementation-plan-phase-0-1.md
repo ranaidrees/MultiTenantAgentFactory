@@ -259,7 +259,7 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 
 - Files: `evals/salon-seed.json` from Appendix F; `data/salon-a/catalogue.json`, `faq.json` from Appendix E; `tests/features/book.feature`, `cancel.feature`, `faq.feature` from Appendix A; `tests/steps/` stubs; `platform/maf/src/maf/seed.py` (the hash).
 - Does: `maf seed export` writes the three data files from the appendices and prints the SHA-256 of `evals/salon-seed.json`; the row format follows the Action's data file ("Array of input objects with `query` and optional evaluator fields like `ground_truth`, `context`") [eval-action]; the feature files are copied verbatim and bound with `scenarios("features")` [pytest-bdd].
-- Proof: the file loads in the Action in S6; `pytest tests/features` collects 20 scenarios (skipped until the graph exists).
+- Proof: the file loads in the Action in S6; `pytest tests/features` collects 17 scenarios (skipped until the graph exists).
 - Owner: `signs` the three appendices by accepting this plan; the hash of the exported file is written into `docs/adr/README.md` and later into every release record (D57, D67).
 - Azure writes: none.
 
