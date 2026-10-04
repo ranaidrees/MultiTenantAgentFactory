@@ -1,7 +1,7 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp). Date: 2026-10-04.
-Stage: 2 of 6 (Design). Reads: docs/intent.md revision 14 (decisions D1 to D71).
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp) and again for D72 to D79 (the owner's decisions after council review 05 of the plan). Date: 2026-10-04.
+Stage: 2 of 6 (Design). Reads: docs/intent.md revision 15 (decisions D1 to D79).
 Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
 
@@ -166,6 +166,14 @@ Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md.
 | Question | Answer | Decision |
 |---|---|---|
 | The owner's question of 2026-10-04, raised with an external note on regulated-industry requirements: should the gateway be a central AI gateway for tools as well as models? | Yes, from Phase 1, as an MCP pass-through with defence in depth; bypass of the tool path is detected, not closed, until Phase 2 | D71 |
+| Council review 05 of the plan, question 2: pull request checks | No Azure login on pull requests: build, lint and a snapshot diff; the what-if runs in the candidate job | D72 |
+| Questions 3 and 11: gateway identity, telemetry sink, reconciliation, MCP entity API version | User-assigned identity in the persistent group; logger and diagnostic at 100 per cent; join by request id; the `apis` resource at 2025-09-01-preview | D73 |
+| Questions 8 and 11: teardown | Nightly deletes only, after its checks; `up` purges; a second schedule at 18:30 on weekdays | D74 |
+| Questions 1 and 11: the eval judge | Admin-connected model through the gateway first; a deployment on resource A only as the recorded fallback | D75 |
+| Question 4 and the gate's calibration | Thresholds from five runs of the bootstrap release; deterministic checks of the signed outcomes; jailbreak rows out of the judged set; a 3,000,000-token quota on the spike day | D76 |
+| Question 5: trace evaluation | Withdrawn for Phase 1; an eval twin version in Phase 2 | D77 |
+| Questions 6 and 7: identities and the injection control | Foundry User at project scope for the pipeline; no search delete for teardown; structural control plus the poisoned-passage test | D78 |
+| Questions 9 and 10: supply chain and the harness | Base image by digest; scanner deferred; plugin auto-update off; mutation checks wired in Phase 0 and measured in Phase 1 | D79 |
 
 ## 3. Architecture
 
@@ -233,8 +241,8 @@ Two groups. Names are proposals for the implementation plan.
 
 | Group | Lifetime | Contents |
 |---|---|---|
-| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity and teardown identity, each with federated credentials; workload identity for salon-mcp; Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release records; container registry; Azure Workbook; the cost budget (D51) |
-| Environment (`rg-maf-dev`) | Created by `up`; kept between working days; deleted only by a full `down` | Two Foundry resources, one for the tenant projects and the hosted agent and one for the model deployments; the gateway, which alone is removed nightly (D37); Container Apps environment and salon-mcp; storage account holding bookings, catalogue and the tenant registry; search service |
+| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity and teardown identity, each with federated credentials; workload identity for salon-mcp; the gateway's user-assigned identity (D73); Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release records; container registry; Azure Workbook; the cost budget (D51) |
+| Environment (`rg-maf-dev`) | Created by `up`; kept between working days; deleted only by a full `down` | Two Foundry resources, one for the tenant projects and the hosted agent and one for the model deployments; the gateway, which alone is deleted nightly and purged by `up` the next morning (D37, D74); Container Apps environment and salon-mcp; storage account holding bookings, catalogue and the tenant registry; search service |
 
 ```mermaid
 flowchart LR
@@ -281,8 +289,9 @@ propagate" [table-entra].
 The model deployments have their own Foundry resource because a hosted agent has implicit access to
 model inferencing within its own project [ha-perm]. Models left beside the agent would be reachable
 without the gateway. Only the gateway's managed identity holds a role on the model resource.
-Whether the agent's own resource can run with no chat deployment is tested in spike S1, and where
-the eval judge deployment goes is tested in S6.
+Whether the agent's own resource can run with no chat deployment is tested in spike S1. The eval
+judge is reached through the gateway as an admin-connected model (D75), so no judge deployment
+sits within the agent's reach; S6 tests that route first.
 
 ### 3.3 The tenant module
 
@@ -388,17 +397,17 @@ sequenceDiagram
 | 5b. Gateway to salon-mcp | The agent identity, in the forwarded token | The same token | Signature, issuer, tenant directory, audience, expiry, and the agent marker claim `xms_par_app_azp` [mcp-entra], [agent-token]; v2 tokens only; the protected resource metadata document is served and referenced from 401 responses [mcp-entra] | Looked up again from the caller's object id in the registry | Wrong audience: 401. Unregistered identity: 403. A tool call carrying a tenant_id is rejected by the tool schema. A call at salon-mcp's own address with a valid token succeeds: bypass is detected by the reconciliation check (section 5.4), not closed |
 | 6. salon-mcp to storage and search | salon-mcp's user-assigned managed identity [aca-mi] | Azure RBAC data roles | Table and index scoped roles; an add-and-read-only custom role on the audit table [table-authz]; read only on the registry | Passed in code from hop 5's lookup | Updating or deleting an audit row is refused by Azure |
 | 7. Owner and scripts to Azure | The owner's own Azure login (D20) | Interactive login | Azure RBAC as subscription Owner | Parameter to the admin script | None. See the accepted risk in section 11 |
-| 8. Nightly teardown to Azure | Teardown managed identity, by GitHub OIDC, in its own environment restricted to `main` | Federated token [gh-oidc] | A custom role: delete on the gateway and the two purge actions [apim-softdel] | Not applicable | Its attempt to delete anything else is refused |
+| 8. Nightly teardown to Azure | Teardown managed identity, by GitHub OIDC, in its own environment restricted to `main` | Federated token [gh-oidc] | A custom role: delete and read on the gateway, and read on what the checks need; no purge action, because purging needs Contributor on the instance [apim-softdel] (D74) | Not applicable | Its attempt to delete anything else is refused |
 
 What each identity holds (D42). Exact role definitions are for the implementation plan.
 
 | Identity | Holds | Does not hold |
 |---|---|---|
 | The owner's login, used by sessions and scripts | Subscription Owner (D20) | Nothing is withheld; see section 11 |
-| Pipeline identity | Push to the registry; `agents/write` on the tenant project, which creates a version and moves the selector [ha-perm]; deploy salon-mcp and gateway policies in the environment group; write release records | Purge rights; any role outside the two groups |
-| Teardown identity | Delete on the gateway; the two purge actions at subscription scope [apim-softdel]; read access for the nightly checks | Any right to create or change a resource |
+| Pipeline identity | Push to the registry; Foundry User at project scope, the least built-in role carrying `agents/write`, which creates a version and moves the selector [ha-perm] (D78); deploy salon-mcp and gateway policies in the environment group; write release records | Foundry Project Manager; purge rights; any role outside the two groups |
+| Teardown identity | Delete and read on the gateway; read access for the nightly checks (D74) | Purge actions; any right to create or change a resource |
 | Agent identity | Calls to the gateway and salon-mcp; implicit access within its own project [ha-perm] | Any role on the model resource |
-| Gateway managed identity | Cognitive Services OpenAI User on the model resource [apim-auth]; nothing on salon-mcp, because it forwards the caller's token | Anything else |
+| Gateway identity, user-assigned in the persistent group (D73) | Cognitive Services OpenAI User on the model resource [apim-auth]; Monitoring Metrics Publisher on Application Insights for its logger; nothing on salon-mcp, because it forwards the caller's token | Anything else |
 | salon-mcp workload identity | Read and write on bookings and catalogue; read on the registry; query on the tenant indexes; add and read on the audit table [table-authz] | Update or delete on the audit table; write on the registry |
 | Named test identities | Foundry Agent Consumer on the agent [ha-perm] | Anything else |
 
@@ -589,7 +598,9 @@ Policies live in the repository and are deployed with the gateway each time `up`
   reported from the persisted token metrics, with an alert, not enforced. A quota period starts at
   "the UTC timestamp truncated to the unit" [apim-limit], so the daily quota resets at midnight
   UTC, and a gate run that straddles midnight sees two quotas.
-- **Metrics.** `llm-emit-token-metric` with four custom dimensions: tenant_id, agent_id,
+- **Metrics.** The gateway has an Application Insights logger and a diagnostic at 100 per cent
+  sampling, which its metric policies need to emit anything [apim-appinsights] (D73).
+  `llm-emit-token-metric` with four custom dimensions: tenant_id, agent_id,
   environment and model_deployment. That is within the limit of five, and their product stays far
   below 1,000 series [apim-metric]. agent_version, conversation_id, turn_id, graph_node and
   tool_name are span-only, because their cardinality would exhaust the limits.
@@ -599,7 +610,8 @@ Policies live in the repository and are deployed with the gateway each time `up`
   This design does not create one: the caller's Entra identity already identifies the tenant, and a
   subscription key would be a shared secret to store and rotate.
 - **Tool path (D71).** The same instance exposes salon-mcp as an existing MCP server over
-  Streamable HTTP [apim-mcp]. Inbound: `validate-azure-ad-token` for salon-mcp's audience and the
+  Streamable HTTP [apim-mcp]; the entity is an `apis` resource at API version 2025-09-01-preview,
+  which the management API requires for MCP servers [apim-mcp-rest] (D73). Inbound: `validate-azure-ad-token` for salon-mcp's audience and the
   registered caller [apim-mcp-sec]; the registry lookup; `rate-limit-by-key` with the counter key
   set to tenant and agent together, 60 calls in 60 seconds as the starting figure and a deploy
   parameter, returning 429 when exceeded [apim-rate]; `emit-metric` with the dimensions
@@ -611,10 +623,11 @@ Policies live in the repository and are deployed with the gateway each time `up`
   tools and resources, not prompts, and needs MCP 2025-06-18 or later [apim-mcp], which FastMCP 4
   on the 2026-07-28 specification meets (section 7).
 - **The reconciliation check (D71).** salon-mcp's own address stays reachable with a valid token,
-  because the gateway has no fixed outbound address on the v2 tiers [apim-ip]. The nightly
-  workflow counts salon-mcp's audit rows and the gateway's MCP requests for the day and fails on
-  a difference, which turns a bypass into a detected event. Closing the path is the Phase 2 lock
-  described in section 4.
+  because the gateway has no fixed outbound address on the v2 tiers [apim-ip]. The gateway stamps
+  a request id on every tool call it forwards and salon-mcp writes it into the audit row; the
+  nightly workflow joins the day's audit rows to the gateway's tool-call requests in Application
+  Insights and fails on a row with no request (D73), which turns a bypass into a detected event.
+  Closing the path is the Phase 2 lock described in section 4.
 
 Limits to state plainly: counters are kept per gateway; "concurrent or near-concurrent requests
 can temporarily exceed the configured token limit"; and without prompt estimation the request that
@@ -760,16 +773,21 @@ whichever yields a machine-readable result (D56).
   is the AI Red Teaming Agent [red-team]. Safety in the gate rests on the guardrail's negative test
   and the poisoned-passage test; a second Foundry project in an EU region for safety evaluators
   and red teaming is decided in Phase 2 (D63).
-- **Judge.** The Action needs a model deployment for its judge [eval-action]. Its model and
-  version are pinned.
+- **Judge.** The Action needs a model deployment for its judge [eval-action]. The judge is an
+  admin-connected model: a project connection to the gateway, named as `<connection>/<deployment>`
+  wherever an evaluator takes a model, so its tokens cross the gateway and are metered under the
+  project identity's own registry row; the feature is in preview and "might not be available in
+  all regions" [eval-admin-models] (D75). Its model and version are pinned. If S6 cannot make the
+  route work, a judge deployment on resource A serves the gate run only, the window is recorded
+  and the model path is "bypass detected" during gate runs.
 
 **The scripted write tests** cover booking and cancelling, which stop at the confirmation and need
 a second turn the Action cannot send. They are feature files in Given, When, Then form, signed by
 the owner (D67), run against a session pinned to the candidate: approve, decline and tool error,
 for each of booking and cancelling. Each asserts the end state in the bookings table and the audit
-table. The model is in the loop. Their traces are then judged with the task completion and tool
-evaluators through the platform's trace evaluation, if spike S6 shows it runs from a UK South
-project (D58) [foundry-mcp-tools]; until then nothing in this path is judged by a model.
+table. The model is in the loop. Their traces are not judged by a model in Phase 1 (D58, withdrawn
+by D77): the trace evaluators need message content, which D46 keeps off, and the recording switch
+is set per agent version; Phase 2 judges an eval twin version instead.
 
 **Gate.** Promotion is blocked if any of these holds:
 
@@ -780,9 +798,11 @@ project (D58) [foundry-mcp-tools]; until then nothing in this path is judged by 
 - a scripted write test fails.
 
 **Thresholds are measured before they are fixed (D44, D57).** Starting figures, each with its
-reason, are in the Definition of good (section 5.11). Spike S6 runs the sound version five times
-and one subtly regressed version; each threshold is set at the mean minus two run-to-run standard
-deviations, and this section is updated to state the smallest regression the gate detects. With
+reason, are in the Definition of good (section 5.11). Spike S6 proves the plumbing with a sound, a
+damaged and a subtly regressed version of the spike graph; the five baseline runs are of the
+bootstrap release of the real graph, before any promotion is gated (D76); each threshold is set at
+the mean minus two run-to-run standard deviations, and this section is updated to state the
+smallest regression the gate detects. With
 50 rows per judged intent the standard error of a pass rate of 0.90 is about 0.042, so a drop of
 about 8 points is the best the judged rows can resolve; with the 20 rows of the previous draft it
 was about 13. Until the measured figures are in, the claim is limited to gross failures.
@@ -795,7 +815,10 @@ no baseline. It is judged on the absolute thresholds only and recorded as the bo
 
 **Deterministic rules.** Tenant override, the two-tenant boundary, booking validation, the
 double-booking race, idempotency, citation checking and confirmation before writes are ordinary
-pytest tests that run on every pull request. They need no model. Mutation testing and a
+pytest tests that run on every pull request. They need no model. The gate also checks the signed
+expected intent, the tool calls and the citations of every judged row deterministically from the
+candidate session's spans and responses, because no built-in evaluator reads them, and
+groundedness receives the row's passages as its context (D76). Mutation testing and a
 complexity-and-coverage report run on these control modules only, with a minimum mutation score
 as a pull request check, so the tests are shown to notice a broken control (D68). Those
 thresholds are measured first and may be relaxed as the agent proves itself.
@@ -811,8 +834,8 @@ version without changing what is served [release].
 
 ```mermaid
 flowchart LR
-  pr["Pull request: lint, pytest, contracts, mutation score, Bicep build and what-if, secret scan"] --> merge["Merge to protected main"]
-  merge --> cand["Candidate job: environment dev, no approval"]
+  pr["Pull request: lint, pytest, contracts, mutation score, Bicep build and snapshot diff, secret scan"] --> merge["Merge to protected main"]
+  merge --> cand["Candidate job: environment dev, what-if, no approval"]
   cand --> pin["Pin the served version: one FixedRatio rule at 100"]
   pin --> build["Build and push the image; record and attest the digest"]
   build --> ver["Create the agent version; selector untouched"]
@@ -834,9 +857,12 @@ flowchart LR
 ```
 
 1. **Pull request.** Lint, pytest, the architecture contracts and the mutation score on the control
-   modules (D68, D69), Bicep build and what-if, and secret scan. Main is protected: changes arrive
-   by pull request with required checks.
-2. **Candidate** (GitHub environment `dev`, no approval). Pin the served version with one
+   modules (D68, D69), Bicep build, lint and a `bicep snapshot` diff, which "performs local-only
+   testing" and catches logic changes "without requiring an Azure connection" [whatif], and secret
+   scan; no Azure login, so every environment stays restricted to `main` (D72). Main is protected:
+   changes arrive by pull request with required checks.
+2. **Candidate** (GitHub environment `dev`, no approval). Run the Bicep what-if and attach its
+   output (D72); pin the served version with one
    `FixedRatio` rule at 100 per cent; build the image and attest its digest with `actions/attest`
    (D62) [gh-attest-use]; create a new agent version without touching the selector. Microsoft warns that the default "follows the latest version", so pinning first
    is what stops a deploy from changing traffic [release], [cicd].
@@ -904,7 +930,8 @@ candidate to nobody until promotion; a canary is a Phase 2 option.
 
 - **`up`.** Brings the environment to a working state from wherever it is.
   - On a working day the environment group exists and only the gateway is missing. `up` creates
-    it with its policies and registry values, waits, and runs a smoke test. Microsoft says a Basic
+    purges the soft-deleted instance, creates it with its policies and registry values, waits, and
+    runs a smoke test (D74). Microsoft says a Basic
     v2 instance will "typically provision within 5-10 minutes" [ai-gw]. The gateway keeps its name,
     which a purged instance frees for reuse in the same subscription [apim-softdel], so agent
     versions that hold its address stay valid.
@@ -914,14 +941,17 @@ candidate to nobody until promotion; a canary is a Phase 2 option.
     builds the agent from the working tree. With no release record, as on a clean clone, it stops
     after the infrastructure and says that the first pipeline run will be the bootstrap release.
   - Either way it waits for role assignments to take effect before reporting ready.
-- **`down`.** By default it deletes and purges the gateway, and the Basic search service if spike
-  S4 fell back to it. A deleted gateway keeps its name for 48 hours unless purged [apim-softdel].
+- **`down`.** By default it deletes the gateway, and the Basic search service if spike S4 fell
+  back to it; a soft-deleted gateway bills nothing and keeps its name for 48 hours unless purged
+  [apim-softdel], and `up` purges it before recreating it (D74).
 - **`down`, full.** A separate, explicit form removes role assignments that point at persistent
   resources, deletes the environment group, then purges the soft-deleted gateway and Foundry
   resources. The purge of a Foundry resource needs Contributor at subscription level [purge]. It
   is used for spike S5 and the stranger test.
-- **Nightly workflow.** Runs the default `down` each evening with the teardown identity, checks
-  that no gateway remains, and runs the served-image, registry and reconciliation checks (D71). A forgotten gateway
+- **Nightly workflow.** Runs the served-image, registry and reconciliation checks first, while the
+  gateway still exists (D71, D74), then the default `down` with the teardown identity, and checks
+  that no gateway remains. It is scheduled at 18:30 on weekdays and at 22:00 every day, so a
+  gateway brought up at 09:00 costs about nine hours, not thirteen (D74). A forgotten gateway
   costs at most one day of its hourly price. A failed run fails the workflow, which GitHub reports
   to the owner.
 
@@ -1088,17 +1118,17 @@ agent, and can it be mapped to a tenant?
 
 - Method: deploy three versions: a sound one, one with a deliberately damaged prompt, and one with
   a subtle regression. Run the Action and a direct call to the project evaluation API
-  [eval-targets] with each candidate against the sound version as baseline, and run the sound
-  version against itself five times (D56, D57). Use the resource layout S1 chose, because the
-  Action needs a judge model deployment in the project [eval-action], and that could put a
-  deployment back within the agent's implicit reach. Run the scripted write tests against a pinned
-  candidate session, then try one trace evaluation of their traces (D58).
+  [eval-targets] with each candidate against the sound version as baseline (D56). Use an
+  admin-connected model through the gateway as the judge (D75); only if that fails, a judge
+  deployment on resource A for the run, with the window recorded. Run the scripted write tests
+  against a pinned candidate session. Run the day with a 3,000,000-token quota (D76).
 - Go criteria: a version that is not served can be evaluated; the damaged version is flagged and
   the job fails; the sound version passes; the gate step can read the result from something other
   than the page a person reads; the scripted tests reach the confirmation and resume it.
-- Measured and written into sections 5.8 and 5.11 and D39: how far scores move across five runs
-  of the same version; whether the subtle regression is detected; the tokens in one gate run;
-  whether a trace evaluation runs from UK South.
+- Measured and written into sections 5.8 and 5.11 and D39: whether the subtle regression is
+  flagged; the tokens in one gate run; whether the admin-connected judge route works in UK South.
+  The five baseline runs that set the thresholds are of the bootstrap release, not the spike graph
+  (D76).
 - No-go fallback: the project evaluation API called from pytest (D56), with its judge model
   deployment pinned. The scripted write tests stand either way.
 - Can change: sections 5.4, 5.8 and 5.9.
@@ -1117,6 +1147,8 @@ agent, and can it be mapped to a tenant?
 | Foundry durable state store, behind `FoundryCheckpointSaver` | "During preview, the state store is available only to hosted agents"; items up to 1 MB [state-store] | Container protocol 2.0.0; `langchain-azure-ai` 1.2.10 with the hosting extra [pypi-lcazure] | `CosmosDBSaver` on Cosmos DB serverless (spike S3) |
 | Hosting protocol libraries | `azure-ai-agentserver-core` and `-responses` 2.1.0b2, installed by the hosting extra [pypi-lcazure] | Exact versions | None: they are the protocol; the thin adapter limits the blast radius |
 | MCP server and client | FastMCP 4.0.10 and `mcp` 2.3.0 on specification 2026-07-28 [mcp-spec]; released packages, pinned because the specification moved a major revision in July 2026 | Exact versions, server and client together | None needed; the pins are the control |
+| API Management MCP server entity (D73) | The `apis` resource at API version 2025-09-01-preview [apim-mcp-rest]; the pass-through feature itself is generally available on Basic v2 [apim-mcp] | Exact API version | `az rest` at the same version |
+| Admin-connected model as the eval judge (D75) | Preview: "might not be available in all regions" [eval-admin-models] | Connection name and deployment pinned | A judge deployment on resource A for the gate run, with the window recorded |
 | LangGraph | 1.2.12; the official sample pins 1.2.11 [sample-hitl] | Exact version | None |
 
 Generally available and not in doubt: hosted agents, API Management v2 policies, Table Storage,
@@ -1186,6 +1218,7 @@ two gate runs do not fit in a day the owner chooses the quota again with the mea
   hours, which brings the limit down to about 135 hours.
 - If S3 falls back to Cosmos DB serverless, add pence.
 - Spike S1 now builds one gateway, not two, so the draft's one-off £5.60 does not arise.
+- The S6 spike day runs with a 3,000,000-token quota: £3.40 at the gpt-5.4-mini mix, once (D76).
 - The tool path through the gateway adds no item: the MCP server entity, its policies and its
   metrics bill nothing beyond the hours the gateway exists (D71). Standard v2, the Phase 2 lock, is
   £0.7237 an hour [prices], £97.70 at 135 hours, which is why the lock is a budget decision.
@@ -1213,7 +1246,7 @@ what remains afterwards.
 | Control | Works | Refuses | Evidence |
 |---|---|---|---|
 | Pipeline identity | A job in `dev` on `main` obtains an Azure token | A job outside the named environments, or from another branch, does not | Workflow runs |
-| Teardown identity | The nightly job deletes and purges the gateway | Its attempt to delete anything else is refused | Workflow run and a refused request |
+| Teardown identity | The nightly job deletes the gateway; `up` purges it the next morning (D74) | Its attempt to delete anything else is refused | Workflow run and a refused request |
 | Protected main | A pull request with green checks merges | A direct push is rejected | Repository settings and a rejected push |
 | Approval gate | An approved job proceeds | An unapproved job waits; a rejected one stops | Environment approval record |
 | Pinned Actions | Workflows run with every Action at a full SHA and a read-only default token | A workflow that references an Action by tag is refused by the repository setting | Workflow files and the refused run |
@@ -1326,8 +1359,8 @@ Design risks:
 | The quota counter restarts when the gateway is purged | A daily quota, and a monthly figure reported from persisted metrics with an alert (D39) |
 | The daily quota is smaller than one gate run | Spike S6 measures it; the quota is a deploy parameter; the owner chooses again with the figure (D39) |
 | The eval gate detects only gross regressions | Stated as the claim until S6 measures the noise (D44) |
-| No safety evaluator in UK South | S6 tests it; otherwise the guardrail and poisoned-passage tests carry safety in the gate (D53) |
-| The eval judge deployment reopens the bypass | S6 runs after S1 with the same resource layout |
+| No safety evaluator in UK South | The guardrail and poisoned-passage tests carry safety in the gate; an EU-region project is a Phase 2 decision (D63) |
+| The eval judge reopens the bypass | The judge is reached through the gateway (D75); if S6 falls back to a deployment on resource A, the window is recorded and bypass is detected by the usage-comparison check during gate runs |
 | Preview components change or disappear | Section 7 names a pin and a fallback for each |
 | The hosting libraries, the state store and the azd extension are beta or preview | Pinned in section 7; the thin adapter; `CosmosDBSaver` as the state fallback |
 | The MCP stack moves a major revision again | Server and client pinned together in section 7 |
@@ -1357,18 +1390,18 @@ tools is D71.
 
 ## 12. Open questions
 
-For the owner: none are open from this gate. Three come back with measurements:
+For the owner: none are open from this gate. Four come back with measurements:
 
 - the daily token quota, once spike S6 has measured a gate run (D39);
 - the search tier, once spike S4 has run (D27);
-- the tool rate limit, once spike S1 has counted the tool calls in a gate run (D71).
+- the tool rate limit, once spike S1 has counted the tool calls in a gate run (D71);
+- the judge route, once spike S6 has tried the admin-connected model (D75).
 
 For the implementation plan:
 
 - The Bicep module layout, the script steps of the tenant module, and the exact custom role
   definitions for each identity in section 4.
 - How the gate step reads the eval result, as found by spike S6 (D56).
-- Whether a trace evaluation of the scripted conversations runs from UK South (spike S6, D58).
 - The mutation score and complexity thresholds for the control modules, measured first (D68), and
   the tool choices for mutation testing, the import contracts and the BDD runner.
 - The names and flags of the two forms of `down`.
@@ -1376,10 +1409,14 @@ For the implementation plan:
 
 ## 13. References
 
-All opened on 2026-10-03; the rows added for D71 were opened on 2026-10-04.
+All opened on 2026-10-03; the rows added for D71 to D79 were opened on 2026-10-04.
 
 | Key | Source |
 |---|---|
+| [apim-mcp-rest] | https://learn.microsoft.com/azure/api-management/manage-mcp-servers-rest-api |
+| [apim-appinsights] | https://learn.microsoft.com/azure/api-management/api-management-howto-app-insights |
+| [eval-admin-models] | https://learn.microsoft.com/azure/foundry/observability/how-to/evaluate-admin-connected-models |
+| [whatif] | https://learn.microsoft.com/en-us/azure/azure-resource-manager/bicep/deploy-what-if |
 | [apim-mcp] | https://learn.microsoft.com/azure/api-management/expose-existing-mcp-server |
 | [apim-mcp-sec] | https://learn.microsoft.com/azure/api-management/secure-mcp-servers |
 | [apim-mcp-overview] | https://learn.microsoft.com/azure/api-management/mcp-server-overview |
