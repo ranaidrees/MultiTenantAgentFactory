@@ -1,6 +1,6 @@
 # Research: AgentOps on Azure (reference implementations, patterns and build plan)
 
-Date: 2026-10-03. Purpose: evidence base for docs/intent.md. Star counts and dates are as captured in October 2026; effort estimates are my own, not measured figures.
+Date: 2026-10-03. Purpose: evidence base for docs/intent.md. Star counts and dates are as captured in October 2026; effort estimates are my own, not measured figures. Where this note and docs/intent.md section 14 disagree, the intent is right.
 
 Summary: the idea is partly done, not novel in its parts but uncommon as a whole. Every individual component (LangGraph on Foundry hosted agents, MCP on Container Apps, APIM as AI gateway, Langfuse on Azure, Foundry eval gates in GitHub Actions) has an official sample or template, but no public repo found combines them into one governed, multi-tenant platform with a spec-driven Agent Factory and a lifecycle dashboard. That integration, plus the regulated-industry controls, is the differentiator.
 
@@ -33,7 +33,7 @@ What interviewers will value is not that each service was used, but the seams: i
 | 1 | https://github.com/microsoft-foundry/foundry-samples (samples/python/hosted-agents/langgraph) | Microsoft | 453 | MIT | Updated 1 Oct 2026 | Official template | Canonical way to host LangGraph on Foundry; uses langchain_azure_ai.agents.hosting and azd |
 | 2 | https://github.com/Azure-Samples/AI-Gateway | Microsoft | about 986 | MIT | Not confirmed | Lab / demo | Bicep and policy XML for token limits, token metrics, MCP governance, Foundry model gateway |
 | 3 | https://github.com/langchain-ai/langchain-azure (samples/hosting/langgraph-hosted-agents) | LangChain | 146 | MIT | Package 1.2.9, 24 Aug 2026 | Official template | Hosting samples including MCP tools, Foundry Toolbox, App Insights observability and HITL |
-| 4 | https://github.com/Azure-Samples/python-mcp-demos | Microsoft | 182 | Not confirmed | Not found | Template | FastMCP on Container Apps with azd plus OAuth (Keycloak or Entra); closest base for salon-mcp |
+| 4 | https://github.com/Azure-Samples/python-mcp-demos | Microsoft | 182 | Not confirmed | Not found | Template | FastMCP on Container Apps with azd plus OAuth (Keycloak or Entra); reused for its azd and Container Apps layout only, since its Entra sample is a user sign-in proxy and it pins FastMCP 3 (intent D61) |
 | 5 | https://github.com/microsoft/ai-agent-evals | Microsoft | about 89 | Not confirmed | Not found | Preview (v3-beta) | GitHub Action that runs Foundry evaluators against a dataset; the deployment gate |
 
 Honourable mentions:
@@ -59,7 +59,7 @@ Estimated effort saved by reusing ranks 1 to 5: roughly 1.5 to 2.5 weeks of infr
 | Config and bookings | Table Storage (intent D26); Cosmos DB serverless was the alternative | GA | Conditional writes or unique keys for double-booking protection |
 | Observability | OpenTelemetry once, exported to App Insights and Langfuse OTLP endpoint | GA | One collector with two exporters |
 | Langfuse hosting | Single VM with Docker Compose, or Langfuse Cloud free tier | OSS | Compose lacks HA and backups; acceptable for a demo if stated |
-| Offline eval | microsoft/ai-agent-evals as the judged harness, with scripted pytest for the write intents; DeepEval only as the fallback (intent D35, D44) | Action in preview | Foundry evaluators for groundedness, intent resolution, task adherence |
+| Offline eval | microsoft/ai-agent-evals as the judged harness, with scripted tests for the write intents; the Foundry project evaluation API, which the Action wraps, as the fallback (intent D35, D44, D56) | Action in preview | Foundry evaluators for groundedness, intent resolution, task adherence |
 | Online eval | Foundry continuous evaluation; Langfuse LLM-as-judge | GA | |
 | IaC and CD | azd plus Bicep, GitHub Actions with OIDC, environments with required reviewers | GA | |
 | Security | Managed identity, Key Vault, Content Safety Prompt Shields, Entra auth on MCP | GA | Hosted agent endpoint stays public even with VNet (documented limitation) |
@@ -117,7 +117,7 @@ Week 1 local slice; week 2 end to end in Azure; week 3 gateway and identity; wee
 - Token limit accuracy: llm-token-limit counts prompt and completion tokens, counters are per gateway, concurrent requests can briefly exceed limits.
 - Langfuse data residency: traces contain personal data; mask at the collector.
 - Model path: a standalone API Management gateway, tested by a Phase 0 spike, with Foundry's AI Gateway as a desk check (intent D23, D47).
-- Toolbox or direct calls to MCP servers: the agent calls salon-mcp directly, with a Foundry toolbox connection as the fallback (intent D52).
+- Toolbox or direct calls to MCP servers: the documented path, a project connection with agentic-identity authentication and an audience, is tested first; the direct call from the graph is what spike S2 proves (intent D52, D60).
 
 ## Sources
 - Foundry hosted LangGraph agents: https://learn.microsoft.com/en-us/azure/foundry/how-to/develop/langchain-hosted-agents
