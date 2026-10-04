@@ -123,10 +123,10 @@ Partitioning rules, encoded as import contracts in step 0.17: `salon_agent` neve
 |---|---|---|
 | Python | 3.11, which langchain-azure-ai 1.2.10 requires (`>=3.11,<4.0`) | [lc-pyproject] |
 | Packaging | uv workspace; `uv sync --locked` in CI, where "uv will raise an error instead of updating the lockfile" if it is stale; `uv run maf ...` for every command, which needs a build system for `[project.scripts]` | [uv-sync], [uv-config] |
-| Pins (all current on PyPI today) | langgraph 1.2.12; langchain-azure-ai 1.2.10 with the hosting extra; azure-ai-agentserver-core 2.2.0 and azure-ai-agentserver-responses 2.2.0, which supersede the spec's 2.1.0b2 because the extra is a floor, not a pin, and `uv lock` resolves to the stable 2.2.0; mcp 2.3.0; fastmcp 4.0.10; azure-ai-projects 2.7.0; azure-identity 1.26.0; azure-data-tables 12.7.0; azure-search-documents 12.0.0; azure-monitor-opentelemetry 1.8.10; opentelemetry-sdk 1.45.0; pytest 9.1.1; pytest-bdd 9.0.0 (fallback 8.1.0); pytest-cov 7.1.0; coverage 7.16.2; ruff 0.16.10; import-linter 2.15; mutmut 3.8.0; pydeps 3.0.9; radon 6.0.1 | [pypi], [lc-pyproject] |
+| Pins (each checked against PyPI on 2026-10-04) | langgraph 1.2.12; langchain-azure-ai 1.2.10 with the hosting extra; azure-ai-agentserver-core 2.2.0, azure-ai-agentserver-responses 2.2.0 and azure-ai-agentserver-invocations 1.2.0, the stable releases above the floors the hosting extra sets (spec section 7); mcp 2.3.0; fastmcp 4.0.10, the spec's pin, though 4.0.11 has since appeared, and step 0.1 re-resolves and records any change; azure-ai-projects 2.7.0; azure-identity 1.26.0; azure-data-tables 12.7.0; azure-search-documents 12.0.0; azure-monitor-opentelemetry 1.8.10; opentelemetry-sdk 1.45.0; pytest 9.1.1; pytest-bdd 9.0.0 (fallback 8.1.0); pytest-cov 7.1.0; coverage 7.16.2; ruff 0.16.10; import-linter 2.15; mutmut 3.8.0; pydeps 3.0.9; radon 6.0.1 | [pypi], [lc-pyproject] |
 | Lint and complexity | ruff with C901 at `max-complexity = 10` as the gate; radon for the report (section 9.6) | [ruff-c901], [radon] |
 | Tests | pytest; feature files with pytest-bdd, scenarios bound with `scenarios()`; markers `@gate`, `@golden`, `@exit`, `@slow` | [pytest-bdd] |
-| Bicep | Azure Verified Modules where one exists, raw resources elsewhere (section 9.1); every module and API version pinned; `az bicep build` and `az deployment group what-if` on every pull request | [avm-index], [whatif] |
+| Bicep | Azure Verified Modules where one exists, raw resources elsewhere (section 9.1); every module and API version pinned; `az bicep build`, the linter and a `bicep snapshot` diff on every pull request with no Azure login, and the `what-if` in the candidate job (D72) | [avm-index], [whatif] |
 | Names | Groups `rg-maf-persist` and `rg-maf-dev` (spec 3.2); resources `<kind>-maf-<role>`; tenant `salon-a`; Foundry resources `fnd-maf-agent` and `fnd-maf-models`; the agent `salon-agent`; the gateway `apim-maf-dev`; the test identities `id-maf-test-caller`, `id-maf-test-norole` and `id-maf-test-norow` (D82) | spec 3.2, 4 |
 | Agent address | Every caller of the agent reads one setting, `MAF_AGENT_BASE_URL`, and appends `/agents/<agent>/endpoint/...` to it. It is the gateway's agent route, `https://apim-maf-dev.azure-api.net/agent`, when spike S1 kept the route, and the project's own endpoint, `https://fnd-maf-agent.services.ai.azure.com/api/projects/salon-a`, when it did not. Calls are plain HTTPS requests with a bearer token for `https://ai.azure.com`, so dropping the route is a change of configuration, not of code (D80) | spec 5.4, 6.2; [sessions] |
 | Identifiers | Subscription, tenant and client ids live in GitHub variables and the owner's local `.env`, never in a file under the repository (D18) | [gh-variables] |
@@ -190,8 +190,8 @@ is tests 1 to 5; test 6 is step 0.9 (D81).
 
 ### Step 0.5 Gateway module and model resource B (0.5 day)
 
-- Files: `infra/modules/gateway.bicep`, `gateway-policies/global.xml`, `llm.xml`, `mcp.xml`, `foundry-models.bicep`, `platform/maf/src/maf/up.py` (gateway create and wait).
-- Does: `gateway.bicep` uses `br/public:avm/res/api-management/service:0.14.4` with `sku: 'BasicV2'`, `skuCapacity: 1` (the module's default is 3), the user-assigned identity `id-maf-gateway` (D73), an Application Insights logger and a diagnostic at 100 per cent sampling through the module's `loggers` and `serviceDiagnostics` parameters, without which the metric policies emit nothing [avm-apim], [apim-appinsights], named values for the registry copy, the LLM API with `llm-token-limit` and `llm-emit-token-metric` from `llm.xml`, and the MCP server entity exposing salon-mcp with `mcp.xml` (D71), a raw `Microsoft.ApiManagement/service/apis` child at API version 2025-09-01-preview with `type: 'mcp'`, the version the management API requires for MCP servers [apim-mcp], [apim-mcp-rest]; `foundry-models.bicep` creates resource B with `gpt-5.4-nano` and `gpt-5.4-mini`, version `2026-03-17`, `sku GlobalStandard`, `versionUpgradeOption: 'NoAutoUpgrade'` [bicep-deployments]; grants `id-maf-gateway` Cognitive Services OpenAI User on resource B only and Monitoring Metrics Publisher on Application Insights [roles-ai].
+- Files: `infra/modules/gateway.bicep`, `gateway-policies/global.xml`, `llm.xml`, `mcp.xml`, `foundry-models.bicep`, `platform/maf/src/maf/up.py` (gateway create and wait), `down.py` (the gateway delete only).
+- Does: `gateway.bicep` uses `br/public:avm/res/api-management/service:0.14.4` with `sku: 'BasicV2'`, `skuCapacity: 1` (the module's default is 3), the user-assigned identity `id-maf-gateway` (D73), an Application Insights logger and a diagnostic at 100 per cent sampling through the module's `loggers` and `serviceDiagnostics` parameters, without which the metric policies emit nothing [avm-apim], [apim-appinsights], named values for the registry copy, the LLM API with `llm-token-limit` and `llm-emit-token-metric` from `llm.xml`, and the MCP server entity exposing salon-mcp with `mcp.xml` (D71), a raw `Microsoft.ApiManagement/service/apis` child at API version 2025-09-01-preview with `type: 'mcp'`, the version the management API requires for MCP servers [apim-mcp], [apim-mcp-rest]; `foundry-models.bicep` creates resource B with `gpt-5.4-nano` and `gpt-5.4-mini`, version `2026-03-17`, `sku GlobalStandard`, `versionUpgradeOption: 'NoAutoUpgrade'` [bicep-deployments]; grants `id-maf-gateway` Cognitive Services OpenAI User on resource B only and Monitoring Metrics Publisher on Application Insights [roles-ai]. `maf down` in its first form, a delete of the gateway by name, is written here, so that the gateway can be removed each evening of week 1; step 0.10 completes the command and adds the nightly workflow.
 - Proof: `az bicep build` and `what-if` clean; `maf up --gateway` returns a healthy gateway within the "5-10 minutes" the spec cites; a test call through the LLM API returns a completion and a token metric appears.
 - Owner: `login`, and `yes` if a session runs it: the gateway is £0.1551 an hour in UK West, about £29 a month at nine hours a working day, over the £20 line.
 - Azure writes: gateway £0.1551 an hour (60 hours £9.31; 135 hours £20.94; 190 hours £29.47); resource B £0 for existing; tokens per use. Blast radius: `rg-maf-dev` plus one role assignment on resource B.
@@ -438,8 +438,8 @@ Built only if step 0.9 kept the route. It is item 2 of the Phase 1 cut order (se
 
 ### Step 1.12 Workbook v0 (0.5 day)
 
-- Files: `infra/workbook/salon-ops.json`, `infra/modules/monitoring.bicep` (the `Microsoft.Insights/workbooks@2023-06-01` resource with `serializedData` from the file, which has no Azure Verified Module) [bicep-workbook].
-- Does: four views by tenant and agent: tokens, cost in pounds from the rates in spec section 8, latency percentiles, eval results from the gate's custom events; a fifth, tool calls from the gateway's `mcp_tool_calls` metric (D71); a sixth, calls to the agent from its `agent_calls` metric, if the route is kept (D80).
+- Files: `platform/maf/src/maf/checks.py` (`maf check tokens`), `.github/workflows/nightly.yml`, `infra/workbook/salon-ops.json`, `infra/modules/monitoring.bicep` (the `Microsoft.Insights/workbooks@2023-06-01` resource with `serializedData` from the file, which has no Azure Verified Module) [bicep-workbook].
+- Does: four views by tenant and agent: tokens, cost in pounds from the rates in spec section 8, latency percentiles, eval results from the gate's custom events; a fifth, tool calls from the gateway's `mcp_tool_calls` metric (D71); a sixth, calls to the agent from its `agent_calls` metric, if the route is kept (D80). The tokens view also shows the month's total against the reported figure of 2,000,000 (D39). `maf check tokens` in the nightly workflow reads the month-to-date total from the persisted token metrics and fails the run when it passes that figure, which GitHub reports to the owner: this is the alert spec 5.4 asks for, reported and not enforced.
 - Proof: a screenshot in the pull request (spec 9.2).
 - Owner: none. Azure writes: the Workbook, £0, in the persistent group, deployed by the bootstrap's Bicep so that no session touches that group (D40).
 
@@ -468,7 +468,7 @@ Built only if step 0.9 kept the route. It is item 2 of the Phase 1 cut order (se
 | Custom roles | raw `Microsoft.Authorization/roleDefinitions@2022-04-01` at subscription scope with `dataActions` | section 9.3 | [custom-role-bicep], [roledef] |
 | Role assignments on resources | each module's `roleAssignments` parameter, by role definition id, never by name | | [avm-storage] |
 | Workbook | raw `Microsoft.Insights/workbooks@2023-06-01`, `kind: 'shared'`, a GUID name | | [bicep-workbook] |
-| What-if and snapshot | A `bicep snapshot` diff on pull requests with no login; `azure/bicep-deploy@v2` with `type: deployment`, `operation: whatIf`, `validation-level: providerNoRbac` in the candidate job (D72) | | [bicep-deploy], [whatif] |
+| What-if and snapshot | A `bicep snapshot` diff on pull requests with no login; `azure/bicep-deploy`, pinned by SHA in section 9.9, with `type: deployment`, `operation: whatIf`, `validation-level: providerNoRbac` in the candidate job (D72) | | [bicep-deploy], [whatif] |
 
 The AVM pattern `avm/ptn/ai-ml/ai-foundry` 0.7.0 is not used: it creates one account with one default
 project plus Cosmos DB, Key Vault, Search and Storage, which does not model one project per
@@ -494,7 +494,7 @@ tenant across two accounts [avm-foundry-ptn].
 | Role | Actions and data actions | Assigned to | Scope | Source |
 |---|---|---|---|---|
 | `maf-audit-append` | actions: `Microsoft.Storage/storageAccounts/tableServices/tables/read`; dataActions: `.../tables/entities/read`, `.../tables/entities/add/action` only | `id-maf-salon-mcp` | the `audit` table | [rbac-storage], [roles-storage] |
-| `maf-gateway-teardown` | `Microsoft.ApiManagement/service/read`, `Microsoft.ApiManagement/service/delete`, `Microsoft.Resources/subscriptions/resourceGroups/read`; in the S4 fallback only, `Microsoft.Search/searchServices/delete` in a second assignment scoped to that one service (D78) | `id-maf-teardown` | `rg-maf-dev` | [rbac-integration], [rbac-ai] |
+| `maf-gateway-teardown` | `Microsoft.ApiManagement/service/read`, `Microsoft.ApiManagement/service/namedValues/read`, a separate action that lets the nightly registry check read the gateway's copy, `Microsoft.ApiManagement/service/delete`, `Microsoft.Resources/subscriptions/resourceGroups/read`; in the S4 fallback only, `Microsoft.Search/searchServices/delete` in a second assignment scoped to that one service (D78) | `id-maf-teardown` | `rg-maf-dev` | [rbac-integration], [rbac-ai] |
 | `maf-agent-reader` | dataActions: `Microsoft.CognitiveServices/accounts/AIServices/agents/read` | `id-maf-teardown` | the tenant project, for the nightly served-image check | [rbac-ai] |
 
 No purge role exists: `maf up` purges the soft-deleted gateway under the login that runs it, because
@@ -617,6 +617,7 @@ updates [gh-dependabot-actions].
 | actions/setup-python | v7.0.0 | 5fda3b95a4ea91299a34e894583c3862153e4b97 |
 | astral-sh/setup-uv | v10.2.0 | c18668ad3cf93ea998bef934396af7bb5c839dc7 |
 | microsoft/ai-agent-evals | v3-beta | 22a09a8f9dbc407e3a5429db9635111fb669f463 |
+| azure/bicep-deploy | v2.3.0 | 66910e9c5c7733c33a1cd605030d02234b3bc4ed |
 
 ## 10. Risks and proof
 
@@ -714,9 +715,8 @@ gateway negative test, the eval gate with its write-path tests, the approval gat
 None block acceptance. Six return with measurements: the daily token quota after S6 (D39), the
 search tier after S4 (D27), the tool rate limit after S1 (D71), the judge route after S6 (D75),
 whether the agent path stays in Phase 1 after step 0.9, and its caller rate limit after S6 (D80).
-One is for information: the
-spec's section 7 pins the hosting protocol libraries at 2.1.0b2, and this plan pins the stable
-2.2.0 that `uv lock` resolves today; the spec row is corrected in step 0.18 with the spike results.
+The spec's section 7 and this plan name the same hosting library versions since principal review
+06.
 
 ## Appendix A. The three golden conversations and the agent route's exit row as feature files (spec 5.11, 9.2, D67, D80)
 
