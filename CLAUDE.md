@@ -27,6 +27,12 @@ currency audit instead of a council rerun (D70), written to `docs/council/NN-<st
   interview (D55): check the facts against current documentation first, so that each question
   comes with options, a recommendation and a source.
 - Evidence with URLs: every design claim cites an official document or sample.
+- Citation check before every artefact commit: every key resolves; every quotation is matched to
+  its page by script, and the page must support the sentence; every Mermaid block is rendered and
+  compared with the file. No semicolons inside sequence-diagram messages.
+- Research subagents save nothing under the repository; they use the scratchpad.
+- Independent read: a revised artefact is read by a reviewer briefed with the decision, not the
+  reasoning, before the next artefact is derived from it.
 - Reuse before build: check official docs and samples first (Microsoft Learn MCP, Context7, web search).
 - Azure writes (intent D9, D13, D14, D20, D21, D40): before any command or MCP tool call that creates,
   changes or deletes Azure resources, state the estimated added monthly cost and the blast radius.
