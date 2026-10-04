@@ -1,6 +1,6 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: revised after council review 03 and principal review 04; awaiting the owner's acceptance. Date: 2026-10-03.
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04. Date: 2026-10-03.
 Stage: 2 of 6 (Design). Reads: docs/intent.md revision 13 (decisions D1 to D70).
 Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.

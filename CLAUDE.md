@@ -48,7 +48,23 @@ currency audit instead of a council rerun (D70), written to `docs/council/NN-<st
 
 ## Architecture
 
-TODO: add after `docs/spec-phase-0-1.md` is accepted.
+Design: `docs/spec-phase-0-1.md`, sections 3 to 5, accepted 2026-10-04. In eight lines:
+1. Salon agent: LangGraph on a Foundry hosted agent, one Foundry project per tenant, in UK South;
+   the graph is a plain package behind a thin hosting adapter.
+2. salon-mcp (FastMCP on Container Apps): the tools, Table Storage bookings and one keyword AI Search
+   index per tenant; it enforces the tenant boundary in code from the caller's identity.
+3. Gateway: API Management Basic v2 in UK West meters and caps tokens per tenant and agent and is
+   removed nightly; the models sit in a Foundry resource that only the gateway's identity can call.
+4. Entra identity at every hop, no keys; tenant_id comes from the caller's registry entry, never from
+   the model, and no tool schema accepts it.
+5. Two groups: persistent (identities, logs, audit, evidence, Workbook, budget), never torn down; the
+   dev environment, built by `up` and removed only by a full `down`.
+6. Release: Actions with OIDC deploys a candidate version; the eval gate, scripted write tests and
+   guardrail test run on a pinned session; a GitHub Environment approval moves the served selector.
+7. Evidence: an immutable GitHub Release per promotion with the record, attested image digest and
+   eval summary, copied to the persistent storage account. GitHub, not Azure, enforces the gate.
+8. Telemetry: OpenTelemetry to Application Insights, nine attribution keys on every agent span, five
+   on the GenAI names; a Workbook adds cost in pounds and the per-tenant join.
 
 ## Commands
 
