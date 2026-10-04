@@ -1,6 +1,6 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan), for D80 (the gateway also fronts the agent endpoint, gated by spike S1) and for D81 and D82 (the time the agent route is given, and the test identities). Date: 2026-10-04.
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan), for D80 (the gateway also fronts the agent endpoint, gated by spike S1) and for D81 and D82 (the time the agent route is given, and the test identities); corrected the same day for principal review 06 of the plan (the hosting library pins, the owner's role, and two rows that D73 and D74 had missed). Date: 2026-10-04.
 Stage: 2 of 6 (Design). Reads: docs/intent.md revision 17 (decisions D1 to D82).
 Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
@@ -363,7 +363,7 @@ with quotations is section 5 of docs/council/04-spec-phase-0-1-principal-review.
 | Eval gate | A batch evaluation that calls the agent by name and version, compared with the served version | None | ai-agent-evals Action, pinned by SHA; the project API as the readable route (D56) | Eval result records | 5.8 |
 | Guardrail | Policy on the agent definition, by full resource id | None | Negative test in the pipeline | None | 5.7 |
 | Audit | None; the project's own append-only table | Agent identity in every row | Release records | None | 5.3 |
-| Teardown | None; the gateway is a separate service | Teardown identity with a purge-only role | Nightly workflow | None | 5.10 |
+| Teardown | None; the gateway is a separate service | Teardown identity with a delete-and-read role and no purge action (D74) | Nightly workflow | None | 5.10 |
 | Dashboard | Portal Traces view; the agent dashboard (preview) | None | None | Workbook v0 for cost and the tenant join; the Agents view (preview) | 5.6 |
 | Maintain loop | Continuous evaluation and Insights in Foundry, both preview, Phase 6 | None | None | Budget and token alerts | Intent section 10 |
 
@@ -423,7 +423,7 @@ What each identity holds (D42). Exact role definitions are for the implementatio
 
 | Identity | Holds | Does not hold |
 |---|---|---|
-| The owner's login, used by sessions and scripts | Subscription Owner (D20); Foundry Agent Consumer on the agent, because Owner carries no data-plane right to call it [ha-perm] | Nothing is withheld; see section 11 |
+| The owner's login, used by sessions and scripts | Subscription Owner (D20); Foundry Project Manager on the tenant project, which deploying a hosted agent requires [deploy] and which carries the data-plane right to call the agent that Owner lacks [ha-perm] | Nothing is withheld; see section 11 |
 | Pipeline identity | Push to the registry; Foundry User at project scope, the least built-in role carrying `agents/write`, which creates a version and moves the selector [ha-perm] (D78); deploy salon-mcp and gateway policies in the environment group; write release records | Foundry Project Manager; purge rights; any role outside the two groups |
 | Teardown identity | Delete and read on the gateway; read access for the nightly checks (D74) | Purge actions; any right to create or change a resource |
 | Agent identity | Calls to the gateway and salon-mcp; implicit access within its own project [ha-perm] | Any role on the model resource |
@@ -1129,7 +1129,7 @@ in Phase 1.
 
 | Deliverable | Acceptance check |
 |---|---|
-| Bootstrap: persistent group; pipeline, teardown and workload identities and the three test identities (D82); federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
+| Bootstrap: persistent group; pipeline, teardown and workload identities, the gateway's identity (D73) and the three test identities (D82); federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
 | IaC skeleton: environment Bicep, tenant module in its Bicep and script parts, `up`, both forms of `down`, nightly teardown | Spike S5 passes |
 | CI with OIDC: pull request checks and the release workflow skeleton, every Action pinned by full SHA, read-only default token, image attestation (D62) | A no-op change travels from pull request to promotion, with approval, and its attestation verifies |
 | Mutation testing and a complexity-and-coverage report on the control modules (D68) | A mutated control module fails the pull request check |
@@ -1291,7 +1291,7 @@ agent, and can it be mapped to a tenant?
 | azd `azure.ai.agents` extension | Beta: the registry's latest is 1.0.0-beta.18, "Foundry agents (Beta)" [azd-registry]; the official sample requires `>=1.0.0-beta.9` [sample-hitl] | Exact version | Deploy through the REST API [deploy] |
 | Azure MCP server (harness only) | 2.0.5, the generally available line (D64) [azure-mcp-readme] | Exact version | az and azd |
 | Foundry durable state store, behind `FoundryCheckpointSaver` | "During preview, the state store is available only to hosted agents"; items up to 1 MB [state-store] | Container protocol 2.0.0; `langchain-azure-ai` 1.2.10 with the hosting extra [pypi-lcazure] | `CosmosDBSaver` on Cosmos DB serverless (spike S3) |
-| Hosting protocol libraries | `azure-ai-agentserver-core` and `-responses` 2.1.0b2, installed by the hosting extra [pypi-lcazure] | Exact versions | None: they are the protocol; the thin adapter limits the blast radius |
+| Hosting protocol libraries | `azure-ai-agentserver-core` 2.2.0, `-responses` 2.2.0 and `-invocations` 1.2.0, all stable releases [pypi-agentserver]. The hosting extra sets floors, `>=2.1.0b2` for the first two and `>=1.1.0b1` for the third, and not pins [pypi-lcazure]; review 04 saw the libraries as beta | Exact versions | None: they are the protocol; the thin adapter limits the blast radius |
 | MCP server and client | FastMCP 4.0.10 and `mcp` 2.3.0 on specification 2026-07-28 [mcp-spec]; released packages, pinned because the specification moved a major revision in July 2026 | Exact versions, server and client together | None needed; the pins are the control |
 | API Management MCP server entity (D73) | The `apis` resource at API version 2025-09-01-preview [apim-mcp-rest]; the pass-through feature itself is generally available on Basic v2 [apim-mcp] | Exact API version | `az rest` at the same version |
 | Admin-connected model as the eval judge (D75) | Preview: "might not be available in all regions" [eval-admin-models] | Connection name and deployment pinned | A judge deployment on resource A for the gate run, with the window recorded |
@@ -1529,7 +1529,7 @@ Design risks:
 | No safety evaluator in UK South | The guardrail and poisoned-passage tests carry safety in the gate; an EU-region project is a Phase 2 decision (D63) |
 | The eval judge reopens the bypass | The judge is reached through the gateway (D75); if S6 falls back to a deployment on resource A, the window is recorded and bypass is detected by the usage-comparison check during gate runs |
 | Preview components change or disappear | Section 7 names a pin and a fallback for each |
-| The hosting libraries, the state store and the azd extension are beta or preview | Pinned in section 7; the thin adapter; `CosmosDBSaver` as the state fallback |
+| The state store is in preview, the azd extension is beta, and the hosting libraries have only recently left beta | Pinned in section 7; the thin adapter; `CosmosDBSaver` as the state fallback |
 | The MCP stack moves a major revision again | Server and client pinned together in section 7 |
 | Learn pages disagree on traffic splitting | Spike S5 records which is right; the gate does not depend on it |
 | Public endpoints for the agent, the gateway and salon-mcp | Entra tokens on every hop; private networking recorded as out of scope (D52) |
@@ -1683,6 +1683,7 @@ All opened on 2026-10-03; the rows added for D71 to D82 were opened on 2026-10-0
 | [azd-prod] | https://learn.microsoft.com/azure/foundry/agents/how-to/deploy-hosted-agent-production |
 | [azd-registry] | https://raw.githubusercontent.com/Azure/azure-dev/main/cli/azd/extensions/registry.json |
 | [pypi-lcazure] | https://pypi.org/pypi/langchain-azure-ai/json |
+| [pypi-agentserver] | PyPI JSON API, https://pypi.org/pypi/{name}/json, for `azure-ai-agentserver-core`, `-responses` and `-invocations` |
 | [agent-id-ga] | https://learn.microsoft.com/en-us/entra/agent-id/whats-new-agent-id |
 | [mcp-demos-readme] | https://raw.githubusercontent.com/Azure-Samples/python-mcp-demos/main/README.md |
 | [mcp-demos-lock] | https://raw.githubusercontent.com/Azure-Samples/python-mcp-demos/main/uv.lock |
