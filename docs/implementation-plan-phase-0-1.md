@@ -1,8 +1,8 @@
 # Implementation plan: Phases 0 and 1
 
-Author: Rana Naveed Idrees. Status: awaiting the owner's acceptance; revised after council review 05 (D72 to D79). Date: 2026-10-04.
-Stage: 3 of 6 (Build, the plan). Reads: docs/intent.md revision 15 (D1 to D79) and docs/spec-phase-0-1.md (accepted 2026-10-04, revised for D71 to D79).
-Council record: docs/council/05-implementation-plan-phase-0-1-review.md, which reviewed commit 7dfc3c8; this revision applies its findings as the owner decided (D72 to D79).
+Author: Rana Naveed Idrees. Status: awaiting the owner's acceptance; revised for D80. The revision also carries D81 and D82, taken the same day. Date: 2026-10-04.
+Stage: 3 of 6 (Build, the plan). Reads: docs/intent.md revision 17 (D1 to D82) and docs/spec-phase-0-1.md (accepted 2026-10-04, revised for D71 to D82).
+Council record: docs/council/05-implementation-plan-phase-0-1-review.md, which reviewed commit 7dfc3c8; the revision before this one applied its findings as the owner decided (D72 to D79). This revision adds the gateway's agent route (D80), the time it is given (D81) and the test identities (D82). A revised artefact gets one single-reviewer pass with a currency audit and no council rerun (D70): docs/council/06-implementation-plan-phase-0-1-principal-review.md.
 Next artifact: code and tests, in pull requests, after this plan is accepted.
 
 ## 1. How to read this plan
@@ -22,6 +22,10 @@ Every step has the same fields.
 | Owner | `login`: runs on the owner's Desktop with the owner's Azure or GitHub login (D20). `yes`: waits for the owner's yes under the Azure writes rule in CLAUDE.md or because it is outward-facing. `signs`: the owner signs content |
 | Azure writes | Each resource created or changed, its added monthly cost as a rate with usage, and the blast radius |
 | Risk | What can go wrong and what is done then |
+
+Two steps were added for D80. Step 0.9 takes a number the previous revision left free. Step 1.14
+takes the next free number in Phase 1 and sits in week 2 after step 1.5. No other step is
+renumbered, because council review 05 and the intent cite the numbers.
 
 Rates below are from the Azure Retail Prices API on 2026-10-04 in GBP, which returns four decimal
 places [prices]; where the spec quotes six, the four-decimal figure is used here. A write by a
@@ -52,7 +56,7 @@ One uv workspace with three Python packages, the infrastructure, the harness and
 │       ├── release.yml            candidate job (what-if first), gates, promote job
 │       └── nightly.yml            the checks, then maf down (D74); 18:30 on weekdays and 22:00 daily
 ├── .claude/
-│   ├── agents/                    council-* (exist); verifier.md
+│   ├── agents/                    council-* (exist); verifier.md after Phase 1 (D81)
 │   ├── commands/council.md        (exists)
 │   ├── hooks/secrets_hook.py      PreToolUse on Edit and Write
 │   ├── hooks/test_edit_hook.py    PreToolUse on Edit and Write under tests/ while a fix is in progress
@@ -64,7 +68,7 @@ One uv workspace with three Python packages, the infrastructure, the harness and
 │   ├── env/main.bicep             resource group scope: rg-maf-dev contents
 │   ├── env/main.bicepparam
 │   ├── modules/
-│   │   ├── identities.bicep       pipeline, teardown, workload and gateway identities; federated credentials
+│   │   ├── identities.bicep       pipeline, teardown, workload, gateway and three test identities (D82); federated credentials
 │   │   ├── roles.bicep            the three custom role definitions (section 9.3)
 │   │   ├── monitoring.bicep       Log Analytics, Application Insights, the Workbook
 │   │   ├── evidence.bicep         storage account: audit table, eval-results and release-records containers
@@ -72,8 +76,8 @@ One uv workspace with three Python packages, the infrastructure, the harness and
 │   │   ├── foundry-agent.bicep    Foundry resource A, the RAI policy, Defender setting left off
 │   │   ├── foundry-models.bicep   Foundry resource B, two model deployments, NoAutoUpgrade
 │   │   ├── gateway.bicep          API Management Basic v2, user-assigned identity, logger and diagnostic, named values,
-│   │   │                          LLM API, MCP server entity (apis at 2025-09-01-preview), policies
-│   │   ├── gateway-policies/      global.xml, llm.xml, mcp.xml
+│   │   │                          LLM API, MCP server entity (apis at 2025-09-01-preview), agent HTTP API (D80), policies
+│   │   ├── gateway-policies/      global.xml, llm.xml, mcp.xml, agent.xml (D80)
 │   │   ├── salon-mcp.bicep        Container Apps environment and the salon-mcp app
 │   │   ├── env-storage.bicep      storage account: bookings, catalogue, registry tables
 │   │   ├── search.bicep           AI Search, free tier, keys disabled
@@ -105,6 +109,8 @@ The `maf` command line is the largest custom build in the plan (D79): about four
 spread over steps 0.2, 0.3, 0.7, 0.8, 0.10, 0.15, 1.2, 1.9, 1.10 and 1.11, each of which names the
 module it adds. `up`, `down` and the checks are the parts the spec names; the rest wraps SDK and
 REST calls the pipeline would otherwise script inline, and is tested by pytest like any package.
+The agent route adds `maf tenant caller` and the agent path of `maf check reconcile`; their time
+is counted in the route's own line in section 11, not here.
 
 Partitioning rules, encoded as import contracts in step 0.17: `salon_agent` never imports
 `salon_agent.hosting` except from `hosting.py` itself; `salon_mcp` never imports `salon_agent`;
@@ -119,9 +125,10 @@ Partitioning rules, encoded as import contracts in step 0.17: `salon_agent` neve
 | Packaging | uv workspace; `uv sync --locked` in CI, where "uv will raise an error instead of updating the lockfile" if it is stale; `uv run maf ...` for every command, which needs a build system for `[project.scripts]` | [uv-sync], [uv-config] |
 | Pins (all current on PyPI today) | langgraph 1.2.12; langchain-azure-ai 1.2.10 with the hosting extra; azure-ai-agentserver-core 2.2.0 and azure-ai-agentserver-responses 2.2.0, which supersede the spec's 2.1.0b2 because the extra is a floor, not a pin, and `uv lock` resolves to the stable 2.2.0; mcp 2.3.0; fastmcp 4.0.10; azure-ai-projects 2.7.0; azure-identity 1.26.0; azure-data-tables 12.7.0; azure-search-documents 12.0.0; azure-monitor-opentelemetry 1.8.10; opentelemetry-sdk 1.45.0; pytest 9.1.1; pytest-bdd 9.0.0 (fallback 8.1.0); pytest-cov 7.1.0; coverage 7.16.2; ruff 0.16.10; import-linter 2.15; mutmut 3.8.0; pydeps 3.0.9; radon 6.0.1 | [pypi], [lc-pyproject] |
 | Lint and complexity | ruff with C901 at `max-complexity = 10` as the gate; radon for the report (section 9.6) | [ruff-c901], [radon] |
-| Tests | pytest; feature files with pytest-bdd, scenarios bound with `scenarios()`; markers `@gate`, `@golden`, `@slow` | [pytest-bdd] |
+| Tests | pytest; feature files with pytest-bdd, scenarios bound with `scenarios()`; markers `@gate`, `@golden`, `@exit`, `@slow` | [pytest-bdd] |
 | Bicep | Azure Verified Modules where one exists, raw resources elsewhere (section 9.1); every module and API version pinned; `az bicep build` and `az deployment group what-if` on every pull request | [avm-index], [whatif] |
-| Names | Groups `rg-maf-persist` and `rg-maf-dev` (spec 3.2); resources `<kind>-maf-<role>`; tenant `salon-a`; Foundry resources `fnd-maf-agent` and `fnd-maf-models`; the agent `salon-agent`; the gateway `apim-maf-dev` | spec 3.2 |
+| Names | Groups `rg-maf-persist` and `rg-maf-dev` (spec 3.2); resources `<kind>-maf-<role>`; tenant `salon-a`; Foundry resources `fnd-maf-agent` and `fnd-maf-models`; the agent `salon-agent`; the gateway `apim-maf-dev`; the test identities `id-maf-test-caller`, `id-maf-test-norole` and `id-maf-test-norow` (D82) | spec 3.2, 4 |
+| Agent address | Every caller of the agent reads one setting, `MAF_AGENT_BASE_URL`, and appends `/agents/<agent>/endpoint/...` to it. It is the gateway's agent route, `https://apim-maf-dev.azure-api.net/agent`, when spike S1 kept the route, and the project's own endpoint, `https://fnd-maf-agent.services.ai.azure.com/api/projects/salon-a`, when it did not. Calls are plain HTTPS requests with a bearer token for `https://ai.azure.com`, so dropping the route is a change of configuration, not of code (D80) | spec 5.4, 6.2; [sessions] |
 | Identifiers | Subscription, tenant and client ids live in GitHub variables and the owner's local `.env`, never in a file under the repository (D18) | [gh-variables] |
 | Actions | Every action pinned to a full commit SHA with a version comment on the same line; the repository setting enforces it (D62) | [gh-actions-settings] |
 | Base image | `python:3.11-slim` pinned by digest, updated by Dependabot's `docker` ecosystem (D79) | [gh-dependabot-ecosystems] |
@@ -139,7 +146,8 @@ builds; WSL for a local mutmut run (section 9.6).
 
 Order: the smallest bootstrap spike S2 needs, then S2, then S1, then the rest of the skeleton, CI
 with OIDC and the GitHub protections. "S2 then S1" (spec 6.2, D47) is read as: the first proofs
-come from the spikes, and the only work before them is what they need. Five days.
+come from the spikes, and the only work before them is what they need. Five days. S1 in this week
+is tests 1 to 5; test 6 is step 0.9 (D81).
 
 ### Step 0.1 Toolchain and workspace skeleton (0.25 day)
 
@@ -156,9 +164,9 @@ come from the spikes, and the only work before them is what they need. Five days
 ### Step 0.2 Bootstrap, part 1: the persistent group (0.5 day)
 
 - Files: `infra/persist/main.bicep`, `infra/persist/main.bicepparam`, `infra/modules/identities.bicep`, `roles.bicep`, `monitoring.bicep`, `evidence.bicep`, `registry.bicep`, `platform/maf/src/maf/bootstrap.py`.
-- Does, in `maf bootstrap azure`: register the five providers the subscription lacks today (API Management, Container Apps, Container Registry, Search, Cosmos DB for the S3 fallback); deploy `persist/main.bicep` at subscription scope, which creates `rg-maf-persist` with: four user-assigned identities (`id-maf-pipeline`, `id-maf-teardown`, `id-maf-salon-mcp` and `id-maf-gateway`, the last so that the gateway's role assignments survive its nightly rebuild, D73) with federated credentials on the first two for `repo:ranaidrees/MultiTenantAgentFactory:environment:dev`, `:environment:dev-promote` (pipeline) and `:environment:nightly-teardown` (teardown), issuer `https://token.actions.githubusercontent.com`, audience `api://AzureADTokenExchange` [gh-oidc-azure], [fic-uami]; Log Analytics with `dataRetention: 31` and Application Insights [avm-law], [avm-ai]; the evidence storage account with `allowSharedKeyAccess: false`, the `audit` table and two blob containers [avm-storage]; the registry with `acrSku: 'Basic'` and `azureADAuthenticationAsArmPolicyStatus: 'enabled'`, which hosted agents require [avm-acr], [ha-perm]; the three custom roles of section 9.3 at subscription scope [custom-role-bicep]; the budget of £40 over both groups with actual alerts at 50, 80 and 100 per cent and a forecast alert at 100 per cent [budget-bicep]. Then create the two Entra app registrations for the gateway's and salon-mcp's audiences with `az ad app create` and set `accessTokenAcceptedVersion` to 2 (D60), and write their ids to the owner's `.env`.
-- Proof: `az group show rg-maf-persist`; `az identity federated-credential list` shows three subjects; `az role definition list --custom-role-only` shows the three roles; `az consumption budget list` shows one budget; `az acr show` reports the ARM-token policy enabled.
-- Owner: `login`, the owner runs it. The provider registrations and the custom roles are subscription-level writes inside the bootstrap, which D9 allows there.
+- Does, in `maf bootstrap azure`: register the five providers the subscription lacks today (API Management, Container Apps, Container Registry, Search, Cosmos DB for the S3 fallback); deploy `persist/main.bicep` at subscription scope, which creates `rg-maf-persist` with: seven user-assigned identities: `id-maf-pipeline`, `id-maf-teardown`, `id-maf-salon-mcp`, `id-maf-gateway` (so that the gateway's role assignments survive its nightly rebuild, D73) and the three test identities `id-maf-test-caller`, `id-maf-test-norole` and `id-maf-test-norow` (D82); federated credentials on the first two for `repo:ranaidrees/MultiTenantAgentFactory:environment:dev`, `:environment:dev-promote` (pipeline) and `:environment:nightly-teardown` (teardown), and on each test identity for `:environment:dev` only; issuer `https://token.actions.githubusercontent.com`, audience `api://AzureADTokenExchange` [gh-oidc-azure], [fic-uami]; Log Analytics with `dataRetention: 31` and Application Insights [avm-law], [avm-ai]; the evidence storage account with `allowSharedKeyAccess: false`, the `audit` table and two blob containers [avm-storage]; the registry with `acrSku: 'Basic'` and `azureADAuthenticationAsArmPolicyStatus: 'enabled'`, which hosted agents require [avm-acr], [ha-perm]; the three custom roles of section 9.3 at subscription scope [custom-role-bicep]; the budget of £40 over both groups with actual alerts at 50, 80 and 100 per cent and a forecast alert at 100 per cent [budget-bicep]. Then create the two Entra app registrations for the gateway's and salon-mcp's audiences with `az ad app create` and set `accessTokenAcceptedVersion` to 2 (D60), and write their ids to the owner's `.env`.
+- Proof: `az group show rg-maf-persist`; `az identity federated-credential list` shows the three subjects of the pipeline and teardown identities and the `dev` subject on each test identity; `az role definition list --custom-role-only` shows the three roles; `az consumption budget list` shows one budget; `az acr show` reports the ARM-token policy enabled.
+- Owner: `login`, the owner runs it. The provider registrations and the custom roles are subscription-level writes inside the bootstrap, which D9 allows there. The test identities hold nothing until step 1.2 gives two of them a role on the agent (D82).
 - Azure writes: registry £0.1257 a day (£3.82 a month); Log Analytics £0 under 5 GB; storage in pence; identities, roles, budget £0. Blast radius: the subscription's provider list and role definitions, and the new group only.
 - Risk: the budget cannot be created on a young subscription ("It might take up to 48 hours") [budget-bicep]; retry next day.
 
@@ -192,7 +200,7 @@ come from the spikes, and the only work before them is what they need. Five days
 ### Step 0.6 Spike S1: gateway binding (1 day)
 
 - Files: `infra/modules/gateway-policies/*.xml` refined; `tests/e2e/test_s1_gateway.py`; `docs/adr/0002-spike-s1-gateway.md`.
-- Does: from inside the agent container (the S2 echo image extended with a model call and a tool call): test 1 a model call through the gateway with the metric within five minutes; test 2 the rate 429 and the quota 403 with the 2,000-token test identity; test 3 the three direct paths to a model refused; test 4 the whole path built from the repository with no portal step; test 5 (D71) the MCP pass-through forwards the `Authorization` header ("Request headers are automatically forwarded (with certain exclusions) to MCP tool invocations" [apim-mcp-sec]), salon-mcp accepts the token, an unregistered identity gets 403 at the gateway, the tool rate limit returns 429 [apim-rate], and the request id the gateway stamps on each forwarded call reaches salon-mcp (D73). Record, not as criteria: whether the quota counter survives delete, purge and recreate; whether a direct call to salon-mcp's own address succeeds (expected); the tool calls in one gate run. One hour's desk check of Foundry's AI Gateway for an API or Bicep route (D47).
+- Does: from inside the agent container (the S2 echo image extended with a model call and a tool call): test 1 a model call through the gateway with the metric within five minutes; test 2 the rate 429 and the quota 403 with the 2,000-token test identity; test 3 the three direct paths to a model refused; test 4 the whole path built from the repository with no portal step; test 5 (D71) the MCP pass-through forwards the `Authorization` header ("Request headers are automatically forwarded (with certain exclusions) to MCP tool invocations" [apim-mcp-sec]), salon-mcp accepts the token, an unregistered identity gets 403 at the gateway, the tool rate limit returns 429 [apim-rate], and the request id the gateway stamps on each forwarded call reaches salon-mcp (D73). Record, not as criteria: whether the quota counter survives delete, purge and recreate; whether a direct call to salon-mcp's own address succeeds (expected); the tool calls in one gate run. One hour's desk check of Foundry's AI Gateway for an API or Bicep route (D47). Test 6, the agent route, is not run here: it has its own half-day in step 0.9 (D81), and ADR 0002 stays open until then.
 - Proof: the ADR's criteria table; the e2e test file runs the five tests against the live gateway and passes.
 - Owner: `login`. If test 3 fails, the network egress controls in preview are tried first within the box [guardrail], then the "bypass is detected" downgrade of spec 6.2.
 - Azure writes: none beyond step 0.5; pence of tokens. Blast radius: none new.
@@ -202,7 +210,7 @@ come from the spikes, and the only work before them is what they need. Five days
 
 - Files: `platform/maf/src/maf/github.py`, `.github/dependabot.yml`, `README.md` (the owner's one-time UI steps).
 - Dependabot: `dependabot.yml` with the `github-actions`, `uv` and `docker` ecosystems, which the ecosystems page lists (uv at v0.11), weekly and grouped; the `docker` ecosystem keeps the base image digest current (D79) [gh-dependabot-ecosystems].
-- Does, in `maf bootstrap github`, with the owner's `gh` login: create the environments `dev`, `dev-promote` and `nightly-teardown` with `PUT /repos/{owner}/{repo}/environments/{name}` and `deployment_branch_policy: {protected_branches: false, custom_branch_policies: true}`, `dev-promote` with the owner as the required reviewer [gh-env-api]; add the branch policy `main` to each with `POST .../deployment-branch-policies` [gh-branch-policy]; create the ruleset for the default branch with `pull_request` at zero required approvals ("Required approvals can be set from 0 (zero) to 10" [gh-rules]), `required_status_checks` naming `pr-checks`, `non_fast_forward` and `deletion`, no bypass actors [gh-rulesets-api]; set Actions permissions to `allowed_actions: selected` with `sha_pinning_required: true` and the allow list (GitHub-owned, `azure/*`, `docker/*`, `astral-sh/setup-uv@*`, `microsoft/ai-agent-evals@*`) [gh-actions-api]; keep the default workflow token at `read`, which it already is; enable immutable releases with `PUT /repos/{owner}/{repo}/immutable-releases` [gh-repos-api]; enable Dependabot alerts and security updates and code scanning default setup for `python` and `actions` [gh-repos-api], [gh-code-scanning]; enable secret scanning and push protection through the repository PATCH, with the UI steps in `README.md` as the fallback because the PATCH is unverified on a Free personal repository [gh-secret-scanning]; create the variables `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_LOGIN_SERVER` at repository level and `AZURE_CLIENT_ID` per environment [gh-variables]. Then read back every setting and fail on a difference, including `can_admins_bypass` on `dev-promote`, which the documented PUT body cannot set and the owner switches off in the UI [gh-env-api].
+- Does, in `maf bootstrap github`, with the owner's `gh` login: create the environments `dev`, `dev-promote` and `nightly-teardown` with `PUT /repos/{owner}/{repo}/environments/{name}` and `deployment_branch_policy: {protected_branches: false, custom_branch_policies: true}`, `dev-promote` with the owner as the required reviewer [gh-env-api]; add the branch policy `main` to each with `POST .../deployment-branch-policies` [gh-branch-policy]; create the ruleset for the default branch with `pull_request` at zero required approvals ("Required approvals can be set from 0 (zero) to 10" [gh-rules]), `required_status_checks` naming `pr-checks`, `non_fast_forward` and `deletion`, no bypass actors [gh-rulesets-api]; set Actions permissions to `allowed_actions: selected` with `sha_pinning_required: true` and the allow list (GitHub-owned, `azure/*`, `docker/*`, `astral-sh/setup-uv@*`, `microsoft/ai-agent-evals@*`) [gh-actions-api]; keep the default workflow token at `read`, which it already is; enable immutable releases with `PUT /repos/{owner}/{repo}/immutable-releases` [gh-repos-api]; enable Dependabot alerts and security updates and code scanning default setup for `python` and `actions` [gh-repos-api], [gh-code-scanning]; enable secret scanning and push protection through the repository PATCH, with the UI steps in `README.md` as the fallback because the PATCH is unverified on a Free personal repository [gh-secret-scanning]; create the variables `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `ACR_LOGIN_SERVER` at repository level and `AZURE_CLIENT_ID` per environment, and in `dev` the three test identities' client ids as `TEST_CALLER_CLIENT_ID`, `TEST_NOROLE_CLIENT_ID` and `TEST_NOROW_CLIENT_ID` (D82) [gh-variables]. Then read back every setting and fail on a difference, including `can_admins_bypass` on `dev-promote`, which the documented PUT body cannot set and the owner switches off in the UI [gh-env-api].
 - Proof: `maf bootstrap github --check` prints every setting equal to the wanted value; a workflow in `dev` on `main` obtains an Azure token and the same workflow on a branch does not (spec 9.1 row 1).
 - Owner: `login` and `yes`: these are outward-facing settings on a public repository, and the admin-bypass switch is a UI step the owner makes.
 - Azure writes: none. Blast radius: the repository's settings.
@@ -219,14 +227,37 @@ come from the spikes, and the only work before them is what they need. Five days
 
 Week 1 also reads the first actual figures from Cost Management with `maf cost` and tells the owner if they differ from spec section 8.
 
-## 5. Phase 0, week 2
+## 5. Phase 0, week 2 and a half-day
 
-Five and a half days of work in five; the cut order in section 11 makes it fit.
+Five and a half days, which D81 allows: Phase 0 is 10.5 working days. The half-day that used to
+rest on the cut order is paid by moving the cloud environment setup script and the verifier
+subagent to after Phase 1, and step 0.9 takes the half-day D81 gave test 6. Nothing is left over;
+section 11 gives the sums.
+
+### Step 0.9 Spike S1, test 6: the gateway's agent route (0.5 day)
+
+- Files: `infra/modules/gateway-policies/agent.xml`; `infra/modules/gateway.bicep` (the agent API); `platform/maf/src/maf/tenant.py` (`maf tenant caller add` and `remove`); `platform/maf/src/maf/up.py` (the caller copy); `tests/e2e/test_s1_agent_route.py`; `docs/adr/0002-spike-s1-gateway.md` (completed).
+- Why a spike: Microsoft's guidance is to "Route all AI traffic through a managed gateway to create a unified control point for policy enforcement" [caf-agents], but it documents its gateway as a proxy for agents that run outside Foundry [custom-agent], and no page was found on 2026-10-04 that describes API Management in front of a hosted agent's own endpoint. This step decides whether the route stays in Phase 1 (D80). It is the last test of S1 and has a half-day of its own, which is not extended (D81).
+- Does:
+  1. The API. One HTTP API in `gateway.bicep`, path `agent`, `subscriptionRequired: false`, with six operations that mirror the agent endpoint [sessions]: `POST /agents/{agent}/endpoint/protocols/openai/responses`; `POST` and `GET /agents/{agent}/endpoint/sessions`; `GET` and `DELETE /agents/{agent}/endpoint/sessions/{id}`; `POST /agents/{agent}/endpoint/sessions/{id}:stop`. The query string, `api-version=v1`, passes through. It is an ordinary HTTP API and not API Management's agent type, where "Only JSON-RPC-based A2A agent APIs are supported" [apim-a2a]; the salon agent speaks the Responses protocol.
+  2. The policy, `agent.xml`, at API scope: `validate-azure-ad-token` with the directory's `tenant-id`, the audience `https://ai.azure.com` and `output-token-variable-name` [apim-validate], [sessions]; the caller's object id read from the `oid` claim of that variable with `Claims.GetValueOrDefault` [apim-expr]; the caller row for that object id and the `{agent}` path parameter looked up in the gateway's caller copy, or 403 with a body that names the gateway as the refuser; the tenant taken from the agent's own row, found by its agent id; `rate-limit-by-key` with `counter-key` set to caller and agent together, `calls="30"` and `renewal-period="60"` from a deploy parameter [apim-rate]; `emit-metric` named `agent_calls` with the dimensions tenant_id, agent_id and environment [apim-emit]; `set-backend-service` to the endpoint of the project that owns the agent, `https://fnd-maf-agent.services.ai.azure.com/api/projects/<tenant_id>`. The policy does not touch the `Authorization` header, so the caller's token goes on unchanged, and the gateway's identity holds no role on the agent.
+  3. The caller row. `maf tenant caller add --agent <agent_id> --principal <object id>` writes a row in the `caller` partition of the `registry` table and regenerates the gateway's caller copy; `remove` deletes it. Section 9.2, step 9, gives the format.
+  4. The test, from the owner's workstation with the owner's user, the one principal that can call the agent from outside a pipeline job (spec 6.2), against the minimal agent S2 deployed, with `"stream": false`, which is the default [sessions]: (a) with the caller row, create a session and send one Responses call through the route, and expect 200; (b) remove the row and expect 403 from the gateway; (c) restore the row, send more calls in a minute than the limit allows and expect 429 [apim-rate].
+- Go criteria (spec 6.2, criterion 6): (a), (b) and (c) pass. That (a) succeeds while the gateway's identity holds no role on the agent is the evidence that Foundry authorised the caller's own token, forwarded unchanged.
+- Recorded, not criteria: which key joins an agent turn to the gateway request that carried it, the W3C trace id if the gateway's trace context reaches the container (the diagnostic's `httpCorrelationProtocol` is set to `W3C`, "Inject Trace Context headers" [apim-diag]), or else a request id header the policy stamps; whether the gateway continues a trace context the caller sent, which would let a caller choose the key; whether the `:stop` path is accepted as an API Management URL template; the `aud` value the caller's token carries, the URI or the application id; whether a session opened through the route is scoped to the caller as it is on a direct call [isolate].
+- The three outcomes, written into ADR 0002 with the reason (spec 6.2):
+  - Kept, with a join key. Steps 1.2 and 1.14 are built as written.
+  - Kept, without a join key. Step 1.14 is built without the reconciliation check, and step 0.18 withdraws every statement in the spec that a bypass is reported: hop 1b, section 5.4, the exit row in 9.2 and the two rows in section 11.
+  - Dropped, because a criterion failed or the half-day ran out; the ADR says which. `MAF_AGENT_BASE_URL` stays the project's own endpoint; step 1.14, the caller rows and the agent route feature of Appendix A are not built; the agent path becomes a Phase 2 item; and step 0.18 applies the reversions spec 6.2 lists. Tests 1 to 5 stand.
+- Proof: `tests/e2e/test_s1_agent_route.py` passes against the live gateway, or ADR 0002 records the drop and its reason.
+- Owner: `login`: the test needs the owner's own user token.
+- Azure writes: one API and one policy on the gateway, £0; the gateway's hours as in step 0.5. Blast radius: the gateway.
+- Risk: the route works for a plain call and fails for the approval round trip or a pinned session. Steps 0.12 and 0.15 test those, and a failure there drops the route by the same rule. If the token's `aud` is the application id and not the URI, the policy lists the value the test saw and the ADR records it.
 
 ### Step 0.10 `up`, both forms of `down`, the nightly workflow (1 day)
 
 - Files: `platform/maf/src/maf/up.py`, `down.py`, `checks.py`; `.github/workflows/nightly.yml`; `infra/modules/search.bicep`, `salon-mcp.bicep`, `env-storage.bicep`.
-- Does: `maf up` brings the environment to working state from wherever it is (spec 5.10): deploys `env/main.bicep` if the group is absent, creates the gateway if absent, generates the gateway's registry named values from the `registry` table, waits for role assignments, runs the smoke test; on a full rebuild restores the digest in the latest release record and writes a restore record (D38). `maf down` deletes the gateway and nothing else; `maf up` purges the soft-deleted instance with `az apim deletedservice purge` before recreating it, under the login that runs `up`, because purging needs the purge actions "in addition to Contributor access to the API Management instance", a write role the unattended teardown identity must not hold (D74) [apim-softdel]. `maf down --all --confirm rg-maf-dev` removes the role assignments that point at persistent resources, deletes the group, purges the soft-deleted gateway and the two Foundry accounts with `az resource delete --ids .../deletedAccounts/...` [purge]; the typed group name is the guard. `nightly.yml` runs at 18:30 on weekdays and at 22:00 every day, Europe/London, a timezone the schedule event accepts ("You can optionally specify a timezone using an IANA timezone string") [gh-events], in environment `nightly-teardown` with the teardown identity, `concurrency: azure-environment` without cancel-in-progress, and runs `maf check served-image`, `maf check registry` and `maf check reconcile` first, while the gateway still exists, then `maf down` (D71, D74). `search.bicep` uses `br/public:avm/res/search/search-service:0.13.0` with `sku: 'free'` (the module's default is `'standard'`) and `disableLocalAuth: true` [avm-search]; `salon-mcp.bicep` uses the managed-environment module 0.16.0 with `zoneRedundant: false` and the container-app module 0.23.0 with `scaleSettings.minReplicas: 0` (the module's default is 3) [avm-aca-env], [avm-aca].
+- Does: `maf up` brings the environment to working state from wherever it is (spec 5.10): deploys `env/main.bicep` if the group is absent, creates the gateway if absent, with the agent API and its policy if spike S1 kept the route (D80), generates the gateway's registry named values from the `registry` table, the agent copy and the caller copy, waits for role assignments, runs the smoke test, which calls the agent through the route when it is kept (D74, D80); on a full rebuild restores the digest in the latest release record and writes a restore record (D38). `maf down` deletes the gateway and nothing else; `maf up` purges the soft-deleted instance with `az apim deletedservice purge` before recreating it, under the login that runs `up`, because purging needs the purge actions "in addition to Contributor access to the API Management instance", a write role the unattended teardown identity must not hold (D74) [apim-softdel]. `maf down --all --confirm rg-maf-dev` removes the role assignments that point at persistent resources, deletes the group, purges the soft-deleted gateway and the two Foundry accounts with `az resource delete --ids .../deletedAccounts/...` [purge]; the typed group name is the guard. `nightly.yml` runs at 18:30 on weekdays and at 22:00 every day, Europe/London, a timezone the schedule event accepts ("You can optionally specify a timezone using an IANA timezone string") [gh-events], in environment `nightly-teardown` with the teardown identity, `concurrency: azure-environment` without cancel-in-progress, and runs `maf check served-image`, `maf check registry` and `maf check reconcile` first, while the gateway still exists, then `maf down` (D71, D74); `maf check reconcile` covers the tool path, and the agent path where step 0.9 found a join key (step 1.14). `search.bicep` uses `br/public:avm/res/search/search-service:0.13.0` with `sku: 'free'` (the module's default is `'standard'`) and `disableLocalAuth: true` [avm-search]; `salon-mcp.bicep` uses the managed-environment module 0.16.0 with `zoneRedundant: false` and the container-app module 0.23.0 with `scaleSettings.minReplicas: 0` (the module's default is 3) [avm-aca-env], [avm-aca].
 - Proof: `maf down` then `maf up` on a working day reaches a passing smoke test; the nightly workflow runs once by `workflow_dispatch` and the teardown identity's attempt to delete the search service is refused.
 - Owner: `login`. A session may run `maf down` without asking (D40); `maf down --all` waits for the owner's `yes`; `maf up` by a session asks (gateway cost).
 - Azure writes: the gateway as in step 0.5; Container Apps £0.3019 per million requests, compute within the free grant at this volume; search free tier £0; storage in pence. Blast radius: `rg-maf-dev`.
@@ -244,7 +275,7 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 ### Step 0.12 Spike S3: durable checkpointer (0.5 day)
 
 - Files: `agents/salon/src/salon_agent/hosting.py` (the checkpointer selection), `docs/adr/0003-spike-s3-checkpointer.md`.
-- Does: `hosting.py` compiles the graph with `FoundryCheckpointSaver()` when the platform variables (`FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_AGENT_SESSION_ID`) are present and `MemorySaver()` otherwise, which the LangChain page shows for local testing [lg-hosted], [lc-azure]; start a booking, stop at the interrupt, wait past the 300-second idle timeout, approve.
+- Does: `hosting.py` compiles the graph with `FoundryCheckpointSaver()` when the platform variables (`FOUNDRY_PROJECT_ENDPOINT`, `FOUNDRY_AGENT_SESSION_ID`) are present and `MemorySaver()` otherwise, which the LangChain page shows for local testing [lg-hosted], [lc-azure]; start a booking, stop at the interrupt, wait past the 300-second idle timeout, approve. Both turns go through the gateway's agent route if step 0.9 kept it, which is where the approval round trip through the route is proved (D80). If the round trip works on a direct call and fails only through the route, the route is dropped by the rule of step 0.9, ADR 0002 is amended, and S3 is judged on the direct call.
 - Proof: exactly one booking row after the resume; the ADR records it. Note the discrepancy for the ADR: Microsoft's sample constructs `FoundryCheckpointSaver(user_isolation=True)` unconditionally [sample-main], and its README says the saver uses "a local file-backed store during local development" [sample-readme], while the langchain-azure README says "Use an in-memory or database-backed LangGraph saver for local development" [lc-azure]; the spike tries both and keeps the one that passes.
 - Owner: `login`. Azure writes: none new. Risk: no-go leads to `CosmosDBSaver` on Cosmos DB serverless at £0.2242 per million request units [prices].
 
@@ -257,26 +288,26 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 
 ### Step 0.14 Seed eval set and the Definition of good as feature files (0.5 day)
 
-- Files: `evals/salon-seed.json` from Appendix F; `data/salon-a/catalogue.json`, `faq.json` from Appendix E; `tests/features/book.feature`, `cancel.feature`, `faq.feature` from Appendix A; `tests/steps/` stubs; `platform/maf/src/maf/seed.py` (the hash).
+- Files: `evals/salon-seed.json` from Appendix F; `data/salon-a/catalogue.json`, `faq.json` from Appendix E; `tests/features/book.feature`, `cancel.feature`, `faq.feature` and `agent_route.feature` from Appendix A; `tests/steps/` stubs; `platform/maf/src/maf/seed.py` (the hash).
 - Does: `maf seed export` writes the three data files from the appendices and prints the SHA-256 of `evals/salon-seed.json`; the row format follows the Action's data file ("Array of input objects with `query` and optional evaluator fields like `ground_truth`, `context`") [eval-action]; the feature files are copied verbatim and bound with `scenarios("features")` [pytest-bdd].
-- Proof: the file loads in the Action in S6; `pytest tests/features` collects 17 scenarios (skipped until the graph exists).
+- Proof: the file loads in the Action in S6; `pytest tests/features` collects 21 scenarios: the 17 of the three golden features, skipped until the graph exists, and the 4 of the agent route, tagged `@exit`, which run only against the live gateway (D80).
 - Owner: `signs` the three appendices by accepting this plan; the hash of the exported file is written into `docs/adr/README.md` and later into every release record (D57, D67).
 - Azure writes: none.
 
 ### Step 0.15 Spike S6: eval gate against a candidate (1 day)
 
 - Files: `platform/maf/src/maf/gate.py`; `evals/thresholds.json`; `docs/adr/0006-spike-s6-eval-gate.md`; `.github/workflows/release.yml` (the gate job filled in).
-- Does: deploy the three versions of spec 6.2 S6 from the week-1 echo graph extended with the FAQ path; run the ai-agent-evals Action pinned at `22a09a8f9dbc407e3a5429db9635111fb669f463` (the `v3-beta` tag today) [eval-action-tags] and, side by side, `maf gate run`, which calls the project evaluation API directly (section 9.4); run the sound version five times to measure the run-to-run spread of the plumbing; count the tokens and the tool calls in one gate run. The judge is an admin-connected model through the gateway, tried first (D75): a project connection to the gateway's LLM API, named as `<connection-name>/<deployment-name>` wherever an evaluator takes a model, which the page documents as preview that "might not be available in all regions" and which requires the connected deployment to expose the Chat Completions API [eval-admin-models]; the project's identity gets its own registry row and quota, so the judge's tokens are metered and not charged to the tenant. The evaluation permissions page says to "assign Foundry User at the Foundry account scope" for a job that invokes a model deployment [eval-perm], which the pipeline identity holds for the run. Only if the route fails does a judge deployment on resource A serve the run, created before and deleted after it, with the window recorded in ADR 0006 and the model path marked "bypass detected" during gate runs. The spike day runs with the quota parameter at 3,000,000 tokens, restored to 150,000 afterwards (D76). The five runs here prove the plumbing; the thresholds the gate uses come from five runs of the bootstrap release in step 1.9 (D76). No trace evaluation is attempted (D77).
-- Proof: the five go criteria of spec 6.2 S6 in the ADR; `gate-result.json` produced by a script; the measured figures written into spec sections 5.8 and 5.11 and D39.
+- Does: deploy the three versions of spec 6.2 S6 from the week-1 echo graph extended with the FAQ path; run the ai-agent-evals Action pinned at `22a09a8f9dbc407e3a5429db9635111fb669f463` (the `v3-beta` tag today) [eval-action-tags] and, side by side, `maf gate run`, which calls the project evaluation API directly (section 9.4); run the sound version five times to measure the run-to-run spread of the plumbing; count the tokens and the tool calls in one gate run. The judge is an admin-connected model through the gateway, tried first (D75): a project connection to the gateway's LLM API, named as `<connection-name>/<deployment-name>` wherever an evaluator takes a model, which the page documents as preview that "might not be available in all regions" and which requires the connected deployment to expose the Chat Completions API [eval-admin-models]; the project's identity gets its own registry row and quota, so the judge's tokens are metered and not charged to the tenant. The evaluation permissions page says to "assign Foundry User at the Foundry account scope" for a job that invokes a model deployment [eval-perm], which the pipeline identity holds for the run. Only if the route fails does a judge deployment on resource A serve the run, created before and deleted after it, with the window recorded in ADR 0006 and the model path marked "bypass detected" during gate runs. The spike day runs with the quota parameter at 3,000,000 tokens, restored to 150,000 afterwards (D76). The five runs here prove the plumbing; the thresholds the gate uses come from five runs of the bootstrap release in step 1.9 (D76). No trace evaluation is attempted (D77). For the agent route, if step 0.9 kept it (D80), three things are recorded in ADR 0006: that a session pinned by `version_ref` works through the route, which needs the second version this spike deploys; the number of agent calls in one scripted run, which sets the caller rate limit; and how an evaluation run's calls appear in the agent's telemetry, under which identity and with which run id, so that the reconciliation check can list them, or report without failing if they cannot be told apart. The judged evaluation is run by the evaluation service against the agent's name and version [eval-targets] and is not expected to cross the route.
+- Proof: the five go criteria of spec 6.2 S6 in the ADR; `gate-result.json` produced by a script; the measured figures written into spec sections 5.8 and 5.11 and D39; the three records for the agent route, if it is kept.
 - Owner: `login`; the spike-day quota is D76's own decision, so no further `yes`.
 - Azure writes: a project connection for the judge; a judge deployment on resource A only in the fallback (GlobalStandard, £0 for existing, tokens per use); the judge's tokens through the gateway at the rates in spec section 8, and an evaluations meter whose price is unverified (spec 2.5). Blast radius: the project and, in the fallback, resource A.
 - Risk: the Action cannot evaluate an unserved version; the project API route is the fallback and the gate step uses whichever returns results (D56).
 
-### Step 0.16 Harness: hooks, skills, the Foundry Skill, verifier, REVIEW.md, `.mcp.json` (0.75 day)
+### Step 0.16 Harness: hooks, skills, the Foundry Skill, REVIEW.md, `.mcp.json` (0.25 day)
 
-- Files: `.claude/hooks/secrets_hook.py`, `test_edit_hook.py`, `.claude/settings.json`, four `SKILL.md` files, `.claude/agents/verifier.md`, `REVIEW.md` (Appendix C), `.mcp.json`, `platform/maf/src/maf/cloud_setup.sh` (the cloud environment setup script).
-- Does: both hooks are `PreToolUse` command hooks matched on `Edit|Write`, which read the JSON on stdin (`tool_name`, `tool_input`) and answer with `hookSpecificOutput.permissionDecision: "deny"` and a reason; "Claude Code reads the JSON decision, blocks the tool call, and shows Claude the reason" [cc-hooks]. The secrets hook scans the content for key shapes (Azure keys, connection strings, GitHub tokens, the subscription and tenant GUIDs from the owner's `.env`); the test-edit hook denies edits under `tests/` while `.claude/fix-in-progress` exists, which the bug-fix protocol creates ("For bug fixes, write the failing test first" [playbook]). The hooks page says to "use the permission system rather than a hook to enforce a hard allow or deny" [cc-hooks]; these hooks reduce accidents, and push protection is the control (spec 6.1). Skills: `SKILL.md` with `name` and `description`, which "Claude uses ... to decide when to apply the skill" [cc-skills]. The verifier subagent: a `.claude/agents/verifier.md` with `description`, `tools: Read, Grep, Glob, Bash` and `model: inherit`, which checks a diff against the step of this plan it claims to implement [cc-agents]. The Foundry Skill: Appendix D; the marketplace's auto-update, "On by default" for `claude-plugins-official`, is switched off and the installed version recorded in `.claude/settings.json`, so D64's pin is not undone (D79) [cc-plugins]. `.mcp.json`: `@azure/mcp@2.0.5` (D64). The cloud setup script installs uv and runs `uv sync --locked` and the unit tests with no Azure credential.
-- Proof: a write containing a planted fake key is blocked by the hook and by push protection; a test edit during a fix is blocked; `/plugin` lists `azure`; `claude --print "which skills apply to tenant isolation"` names the skill; the verifier reports on a sample diff; the cloud script runs green in a fresh cloud session.
+- Files: `.claude/hooks/secrets_hook.py`, `test_edit_hook.py`, `.claude/settings.json`, four `SKILL.md` files, `REVIEW.md` (Appendix C), `.mcp.json`. The verifier subagent, `.claude/agents/verifier.md`, and the cloud environment setup script, `platform/maf/src/maf/cloud_setup.sh`, move to after Phase 1 (D81); what each does stays written below for that time.
+- Does: both hooks are `PreToolUse` command hooks matched on `Edit|Write`, which read the JSON on stdin (`tool_name`, `tool_input`) and answer with `hookSpecificOutput.permissionDecision: "deny"` and a reason; "Claude Code reads the JSON decision, blocks the tool call, and shows Claude the reason" [cc-hooks]. The secrets hook scans the content for key shapes (Azure keys, connection strings, GitHub tokens, the subscription and tenant GUIDs from the owner's `.env`); the test-edit hook denies edits under `tests/` while `.claude/fix-in-progress` exists, which the bug-fix protocol creates ("For bug fixes, write the failing test first" [playbook]). The hooks page says to "use the permission system rather than a hook to enforce a hard allow or deny" [cc-hooks]; these hooks reduce accidents, and push protection is the control (spec 6.1). Skills: `SKILL.md` with `name` and `description`, which "Claude uses ... to decide when to apply the skill" [cc-skills]. After Phase 1 (D81), the verifier subagent: a `.claude/agents/verifier.md` with `description`, `tools: Read, Grep, Glob, Bash` and `model: inherit`, which checks a diff against the step of this plan it claims to implement [cc-agents]. The Foundry Skill: Appendix D; the marketplace's auto-update, "On by default" for `claude-plugins-official`, is switched off and the installed version recorded in `.claude/settings.json`, so D64's pin is not undone (D79) [cc-plugins]. `.mcp.json`: `@azure/mcp@2.0.5` (D64). After Phase 1 (D81), the cloud setup script installs uv and runs `uv sync --locked` and the unit tests with no Azure credential.
+- Proof: a write containing a planted fake key is blocked by the hook and by push protection; a test edit during a fix is blocked; `/plugin` lists `azure`; `claude --print "which skills apply to tenant isolation"` names the skill.
 - Owner: `login` for the plugin install (a Desktop step). Azure writes: none.
 - Risk: the Azure plugin's MCP servers add context cost to every session; if it slows sessions, disable it with `claude plugin disable` and keep the skill content only [cc-plugins].
 
@@ -292,11 +323,14 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 ### Step 0.18 ADRs, the spec update, Phase 0 exit rows, the council gate (0.5 day)
 
 - Files: `docs/adr/0001` to `0006` finished; `docs/spec-phase-0-1.md` updated for the spike results (sections 4, 5.4, 5.8, 5.11, 7, 8, 12); `docs/journal/`.
-- Does: write the six ADRs from Appendix B; apply each spike's "can change" list to the spec; run every row of spec 9.1; run `/council` on the spec change, as spec 9.1 requires.
+- Does: write the six ADRs from Appendix B; apply each spike's "can change" list to the spec, which for S1 includes the outcome of test 6 and, if the route was dropped or has no join key, the withdrawals spec 6.2 lists (D80); run every row of spec 9.1; run `/council` on the spec change, as spec 9.1 requires.
 - Proof: every 9.1 row has evidence named; the citation check passes on the spec.
 - Owner: accepts the spec update. Azure writes: none.
 
 ## 6. Phase 1, week 1: salon-mcp, the data model, the tenant module, the graph locally
+
+Phase 1 is 16 working days (D81). Week 1 holds 5.25 days of work, week 2 holds 5.75 and week 3
+holds 5; the extra day is the agent route's (section 11).
 
 ### Step 1.1 Data model and salon-mcp (2 days)
 
@@ -306,11 +340,11 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 - Owner: none for code. Azure writes: the container app revision, within the free grant.
 - Risk: FastMCP 4's auth hooks differ from the Entra page's expectations; the validation is a plain Starlette middleware around the app, which keeps it independent of FastMCP's own auth modules.
 
-### Step 1.2 Tenant module: Bicep and script steps; the admin script (1 day)
+### Step 1.2 Tenant module: Bicep and script steps; the admin script (1.25 days)
 
 - Files: `infra/modules/tenant.bicep`, `platform/maf/src/maf/tenant.py`, `seed.py`.
-- Does: section 9.2 lists the steps. `maf tenant create salon-a` deploys `tenant.bicep` (project, role assignments), runs the script steps (index, seed, registry entry, gateway named values, the agentic-identity connection) and appends the provisioning record to the audit table (D25).
-- Proof: a second run with the same parameters is idempotent; the audit row exists; `maf check registry` finds the gateway's copy equal to the table.
+- Does: section 9.2 lists the steps. `maf tenant create salon-a` deploys `tenant.bicep` (project, role assignments), runs the script steps (index, seed, the registry's agent row, the caller rows and the role assignments on the agent (D80, D82), gateway named values, the agentic-identity connection) and appends the provisioning record to the audit table (D25). A quarter of a day of this step is the agent route's (section 11).
+- Proof: a second run with the same parameters is idempotent; the audit row exists; `maf check registry` finds the gateway's copy equal to the table, for agent rows and caller rows alike.
 - Owner: `login`, the owner runs it. Azure writes: the project and roles (Phase 0 skeleton already holds them); £0. Blast radius: the project and the index.
 
 ### Step 1.3 The graph, running locally with MemorySaver and a fake salon-mcp (2 days)
@@ -322,33 +356,52 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 
 ## 7. Phase 1, week 2: hosted agent, gateway policies, telemetry, guardrail
 
+Order: 1.4, 1.5, 1.14, 1.6, 1.7, 1.8.
+
 ### Step 1.4 Hosted agent: thin adapter, image, version, pinned session (1 day)
 
 - Files: `agents/salon/Dockerfile`, `langgraph.json`, `hosting.py`; `platform/maf/src/maf/agent.py`; `.github/workflows/release.yml` (candidate job filled in).
 - Does: the image mirrors Microsoft's sample: `python:3.12-slim` replaced by the 3.11 image pinned by digest (D79), `CMD ["python", "-m", "langchain_azure_ai.agents.hosting.run", "--protocol", "responses"]`, port 8088, `langgraph.json` pointing at `graph.py:create_graph` [sample-dockerfile], [sample-langgraph]; `maf agent version create` as in S2 with `rai_config.rai_policy_name` set to the policy's full resource id [guardrail]; `maf agent pin <version>` patches `agent_endpoint.version_selector` with one `FixedRatio` rule at 100 [manage]; `maf agent session --version <n>` creates a session with `version_indicator: {type: version_ref, agent_version: n}` [sessions]; the pipeline pins first, then creates the version, as the manage page orders ("Pin your production endpoint before deploying a candidate version") [manage].
-- Proof: a pinned session answers the FAQ golden conversation through the live gateway; `azd ai agent invoke --version <n>` from the Desktop agrees.
+- Proof: a pinned session answers the FAQ golden conversation, called through the gateway's agent route when it is kept (D80), with its model and tool calls through the gateway; `azd ai agent invoke --version <n>` from the Desktop agrees. That invoke is a direct call, which the reconciliation check of step 1.14 reports.
 - Owner: `login` for the first version. Azure writes: hosted agent compute £0.0510 an active session hour (10 hours £0.51; 30 hours £1.53). Blast radius: the project.
 - Risk: `azd deploy` applies endpoint settings that can overwrite a pin [cicd]; the pipeline never calls `azd deploy`.
 
 ### Step 1.5 Gateway policies for the model and tool paths (1.5 days)
 
 - Files: `infra/modules/gateway-policies/llm.xml`, `mcp.xml`, `global.xml`; `infra/modules/gateway.bicep`; `platform/maf/src/maf/up.py` (named values from the registry); `tests/e2e/test_gateway.py`.
-- Does: `llm.xml`: `validate-azure-ad-token` for the gateway audience, the registry lookup from named values, `llm-token-limit` with the counter key tenant plus agent, 20,000 tokens a minute and a daily quota of 150,000 (D39), `llm-emit-token-metric` with four dimensions (spec 5.4). `mcp.xml` (D71): `validate-azure-ad-token` for salon-mcp's audience and the registered caller [apim-mcp-sec], the same registry lookup, `rate-limit-by-key` with the counter key tenant plus agent, `calls="60"` and `renewal-period="60"` as the starting figure from a deploy parameter, which returns "429 Too Many Requests" when exceeded [apim-rate], and `emit-metric` named `mcp_tool_calls` with the dimensions tenant_id, agent_id and environment, within the five-dimension limit [apim-emit]; the `Authorization` header forwarded, explicitly with `set-header` if S1 showed it is excluded [apim-mcp-sec]. The MCP server entity's backend is salon-mcp's URL; its policies "apply to all API operations exposed as tools" [apim-mcp-overview]. `mcp.xml` also stamps a request id header on every forwarded call, which salon-mcp writes into the audit row; `maf check reconcile` joins the day's audit rows to the gateway's tool-call requests in Application Insights, filtered to `tools/call`, and fails on a row with no request (D73).
-- Proof: the e2e test covers the 429 on both paths, the 403 for an unregistered identity on both, the quota 403 with the 2,000-token identity, and the reconciliation check passing on a clean day and failing after one direct call.
+- Does: `llm.xml`: `validate-azure-ad-token` for the gateway audience, the registry lookup from named values, `llm-token-limit` with the counter key tenant plus agent, 20,000 tokens a minute and a daily quota of 150,000 (D39), `llm-emit-token-metric` with four dimensions (spec 5.4). `mcp.xml` (D71): `validate-azure-ad-token` for salon-mcp's audience and the registered caller [apim-mcp-sec], the same registry lookup, `rate-limit-by-key` with the counter key tenant plus agent, `calls="60"` and `renewal-period="60"` as the starting figure from a deploy parameter, which returns "429 Too Many Requests" when exceeded [apim-rate], and `emit-metric` named `mcp_tool_calls` with the dimensions tenant_id, agent_id and environment, within the five-dimension limit [apim-emit]; the `Authorization` header forwarded, explicitly with `set-header` if S1 showed it is excluded [apim-mcp-sec]. The MCP server entity's backend is salon-mcp's URL; its policies "apply to all API operations exposed as tools" [apim-mcp-overview]. `mcp.xml` also stamps a request id header on every forwarded call, which salon-mcp writes into the audit row; `maf check reconcile` joins the day's audit rows to the gateway's tool-call requests in Application Insights, filtered to `tools/call`, and fails on a row with no request (D73). Only agent rows count on these two routes: a caller row (D80) is not a registration here, so an identity that may call the agent cannot spend the agent's token budget by calling the model route itself (spec 5.4).
+- Proof: the e2e test covers the 429 on both paths, the 403 for an unregistered identity on both, the quota 403 with the 2,000-token identity, and the reconciliation check passing on a clean day and failing after one direct call; `id-maf-test-caller`, which holds a caller row and no agent row, gets 403 on the model route and on the tool route (D80).
 - Owner: `login` for `up`; a session asks (gateway cost). Azure writes: none new; the gateway's hours.
 - Risk: the token's audience is salon-mcp's, so `validate-azure-ad-token` on the MCP entity must name that audience, not the gateway's own; a wrong audience shows as 401 in the first test.
+
+### Step 1.14 The gateway's agent route (0.75 day)
+
+Built only if step 0.9 kept the route. It is item 2 of the Phase 1 cut order (section 11).
+
+- Files: `infra/modules/gateway-policies/agent.xml` (final); `infra/modules/gateway.bicep` (the agent API, the diagnostic's settings); `platform/maf/src/maf/checks.py` (the agent path of `maf check reconcile`); `platform/maf/src/maf/up.py`; `tests/e2e/test_agent_route.py`; `tests/features/agent_route.feature` and its steps (Appendix A).
+- Does:
+  1. The API and policy of step 0.9, made final: one API for every agent, with the agent as a path parameter and the back end taken from the agent's row, so that a second tenant adds registry rows and not a route (spec 5.4). `up` deploys it with the gateway.
+  2. Inbound, in this order: `validate-azure-ad-token` for the Foundry audience [apim-validate]; the caller row for the token's object id and the agent on the route, or 403; the tenant from the agent's row; `rate-limit-by-key` for each caller and agent, 30 calls in 60 seconds as the starting figure from a deploy parameter, replaced by the count step 0.15 recorded [apim-rate]; `emit-metric` `agent_calls` with tenant_id, agent_id and environment [apim-emit]. The limit is approximate: the v2 tiers use a token bucket, and "rate limiting is never completely accurate" [apim-rate].
+  3. Outbound: the token goes on unchanged and Foundry authorises the caller again, with the role at agent scope [ha-perm]. Foundry "identifies each caller from their Microsoft Entra token" [isolate], so sessions stay scoped to the caller. The gateway's identity holds no role on the agent.
+  4. `Authorization` is never recorded. The diagnostic's `headers` setting is the "Array of HTTP Headers to log" [apim-diag]; the list in `gateway.bicep` names the request id header and nothing else, no policy writes the header or the token to a trace or to a variable that is logged, and body logging stays off. The e2e test queries the gateway's request rows in Application Insights after a call and fails if any carries a bearer value.
+  5. Responses are non-streaming on the route in Phase 1 (D80, confirmed in D81). Streaming through API Management needs response buffering switched off on `forward-request` and body logging disabled [apim-sse]; it is left to Phase 2.
+  6. The reconciliation check on the agent path, only if step 0.9 found a join key. `maf check reconcile` joins each agent turn since its last run, read from the agent's spans in Log Analytics, to one gateway agent-route request, each request accounting for one turn at most, and reports a turn with no request. Evaluation turns are listed with their run ids and are not failures; if step 0.15 could not tell them apart, the check reports and does not fail. Anything else that reaches the agent without the gateway is reported, the Foundry portal's playground and a command-line invoke by the owner included.
+- The limits of that check, stated wherever it is shown (spec 5.4). It reads telemetry, which can be lost, not an append-only audit row, and a caller who sets out to hide may be able to choose the trace id. The claim is that an accidental direct call by a role holder is reported, not that a determined one is. Evaluation runs reach the agent through the project evaluation API and do not cross the gateway: they are the stated exception to all AI traffic crossing it (D80). With no join key, the path is governed at the gateway and no detection is claimed.
+- Proof: `tests/e2e/test_agent_route.py` and the agent route feature run in the candidate job as the three test identities (D82), each signed in by its own `azure/login` step with the job's OIDC token [gh-oidc-azure] and `allow-no-subscriptions: true`, because a test identity holds no role on the subscription [azure-login]. `id-maf-test-caller` gets a reply through the route and the `agent_calls` metric appears with its dimensions; `id-maf-test-norow` gets 403 at the gateway; `id-maf-test-norole` passes the gateway and is refused by Foundry; a burst from `id-maf-test-caller` gets 429; no request row carries a bearer value; and, with a join key, one direct call by `id-maf-test-caller` at the agent's own address is reported by `maf check reconcile`.
+- Owner: `login` for `up`; a session asks (gateway cost). Azure writes: one API and one policy on the gateway, £0. Blast radius: the gateway.
+- Risk: the caller limit trips inside a gate run, which shows as failed-to-run and not as a regression (step 1.9); the limit is a deploy parameter and step 0.15 counted the calls. If the route is cut here or was dropped in step 0.9: `MAF_AGENT_BASE_URL` is the project's own endpoint; the caller rows and the caller copy are not written; `up` and steps 1.4, 1.7, 1.9 and 1.10 call the agent directly; the Workbook's agent-call view and the agent route feature are left out; and the reversions of spec 6.2 are applied to the spec.
 
 ### Step 1.6 Telemetry and attribution (1 day)
 
 - Files: `agents/salon/src/salon_agent/telemetry.py`, `services/salon-mcp/src/salon_mcp/telemetry.py`, `infra/workbook/salon-ops.json` (queries only), `tests/e2e/test_attribution.py`.
-- Does: `AzureAIOpenTelemetryTracer` with content recording off; a span processor stamping the nine keys, five on the GenAI names and four under the prefix `maf.` (D59); `gen_ai.agent.version` set to the image digest from the platform-injected variables and the release record (spec 5.6); W3C trace context on calls to the gateway and salon-mcp; the optional Langfuse exporter behind a dev parameter (D32). A saved Log Analytics query returns no agent span missing any key.
-- Proof: the saved query returns zero rows on a sample conversation; salon-mcp's spans join on the trace id; the gateway's token and tool metrics carry their dimensions.
+- Does: `AzureAIOpenTelemetryTracer` with content recording off; a span processor stamping the nine keys, five on the GenAI names and four under the prefix `maf.` (D59); `gen_ai.agent.version` set to the image digest from the platform-injected variables and the release record (spec 5.6); W3C trace context on calls to the gateway and salon-mcp; the optional Langfuse exporter behind a dev parameter (D32). The agent route's `agent_calls` metric joins the token and tool metrics (D80). If step 0.9 chose a stamped request id as the join key, the agent records it on its turn span; if it chose the trace id, nothing is added. A saved Log Analytics query returns no agent span missing any key.
+- Proof: the saved query returns zero rows on a sample conversation; salon-mcp's spans join on the trace id; the gateway's token, tool and agent-call metrics carry their dimensions.
 - Owner: none. Azure writes: logs under 5 GB, £0.
 
 ### Step 1.7 Guardrail, negative test, poisoned passage, the Defender trial (1 day)
 
 - Files: `infra/modules/foundry-agent.bicep` (the RAI policy), `tests/e2e/test_guardrail.py`, `tests/test_poisoned_passage.py`, `platform/maf/src/maf/checks.py` (`maf check guardrail`).
-- Does: the policy is a `Microsoft.CognitiveServices/accounts/raiPolicies` resource with `basePolicyName: 'Microsoft.DefaultV2'`, the `Jailbreak` prompt filter blocking [bicep-rai], [rai-rest]; no indirect-attack shield is claimed on this policy, which screens the agent's prompts and responses, not the passages that reach the model through the gateway, so the Phase 1 control against retrieved-content injection is structural, the answering node has no tools, plus the poisoned-passage test (D78); `maf check guardrail` lists the account's policies and fails if the named one is absent, because "A nonexistent policy fails open with no error" [guardrail]; the negative test sends an attack prompt and expects HTTP 400 with `content_filter` [guardrail]; the poisoned-passage pytest of Appendix A. Then enrol resource B in the Defender for AI Services trial and set a calendar reminder to disable it before day 30 (D66).
+- Does: the policy is a `Microsoft.CognitiveServices/accounts/raiPolicies` resource with `basePolicyName: 'Microsoft.DefaultV2'`, the `Jailbreak` prompt filter blocking [bicep-rai], [rai-rest]; no indirect-attack shield is claimed on this policy, which screens the agent's prompts and responses, not the passages that reach the model through the gateway, so the Phase 1 control against retrieved-content injection is structural, the answering node has no tools, plus the poisoned-passage test (D78); `maf check guardrail` lists the account's policies and fails if the named one is absent, because "A nonexistent policy fails open with no error" [guardrail]; the negative test sends an attack prompt and expects HTTP 400 with `content_filter` [guardrail], calling the agent through the gateway's agent route when it is kept (D80), so in the nightly workflow it runs among the checks, while the gateway still exists (spec 5.7); the poisoned-passage pytest of Appendix A. Then enrol resource B in the Defender for AI Services trial and set a calendar reminder to disable it before day 30 (D66).
 - Proof: the two tests in the candidate job and nightly; one Defender alert shown beside the guardrail.
 - Owner: `login`; `yes` for the Defender enrolment, which is a subscription-level security plan. Azure writes: the policy £0; Defender £0 during the trial. Blast radius: resource A's policy; resource B's Defender setting.
 
@@ -364,14 +417,14 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 ### Step 1.9 The eval gate and the scripted write tests (1.5 days)
 
 - Files: `platform/maf/src/maf/gate.py` (final), `evals/thresholds.json` (from S6), `tests/features/*.feature` and `tests/steps/` (live variant), `.github/workflows/release.yml` (gate job final).
-- Does: section 9.4. The gate job runs the judged harness through the route S6 settled against the served version as baseline, the six `@gate` scenarios against the pinned candidate session with the reserved slots cleared first, the guardrail negative test and the poisoned passage, then `maf gate decide`, which writes `gate-result.json` with pass rates per criterion, the comparison verdict, p95 latency and mean tokens from the candidate session's spans, and a single `passed` boolean; a 429 or 403 from the gateway during the run is reported as failed-to-run (D53). No trace evaluation runs in Phase 1 (D77). Before the first gated promotion, `maf gate baseline` runs the judged harness five times against the bootstrap release and writes `evals/thresholds.json` as the mean minus two standard deviations (D76). `maf gate decide` also checks every judged row's signed `expected_intent` against the `maf.graph_node` spans, `allowed_citations` against the citations in the response, and the no-tool-call rule against `gen_ai.tool.name` spans, because no built-in evaluator reads those fields (D76).
+- Does: section 9.4. The gate job runs the judged harness through the route S6 settled against the served version as baseline, the six `@gate` scenarios against the pinned candidate session with the reserved slots cleared first, the guardrail negative test and the poisoned passage, then `maf gate decide`, which writes `gate-result.json` with pass rates per criterion, the comparison verdict, p95 latency and mean tokens from the candidate session's spans, and a single `passed` boolean; a 429 or 403 from the gateway during the run, on the model, tool or agent route, is reported as failed-to-run (D53). The smoke test, the six `@gate` scenarios and the guardrail negative test call the agent through the gateway's agent route when it is kept (D80), as the pipeline identity, which has a caller row. The judged evaluation does not cross the route: the evaluation service targets the agent by name and version [eval-targets], and `maf check reconcile` lists those turns as the stated exception (step 1.14). No trace evaluation runs in Phase 1 (D77). Before the first gated promotion, `maf gate baseline` runs the judged harness five times against the bootstrap release and writes `evals/thresholds.json` as the mean minus two standard deviations (D76). `maf gate decide` also checks every judged row's signed `expected_intent` against the `maf.graph_node` spans, `allowed_citations` against the citations in the response, and the no-tool-call rule against `gen_ai.tool.name` spans, because no built-in evaluator reads those fields (D76).
 - Proof: a sound candidate passes; a deliberately damaged candidate fails and cannot be promoted (spec 9.2).
 - Owner: none. Azure writes: evaluation judge tokens, pence.
 
 ### Step 1.10 The release pipeline: candidate, attestation, promote, record, Release (1.5 days)
 
 - Files: `.github/workflows/release.yml` (complete), `platform/maf/src/maf/release.py`.
-- Does: the flow of spec 5.9. Candidate job (`dev`): pin the served version, build and push, attest the digest [gh-attest-readme], create the version, wait for `active` with the manage page's polling pattern [manage], create the pinned session, run the gates. Promote job (`dev-promote`, the owner approves in the browser): confirm the candidate is still active and the served version unchanged, `az acr login` then `gh attestation verify oci://...@<digest> --repo ... --signer-workflow ...` [gh-attest-verify], move the selector, write the release record (commit, pull request, candidate and Foundry version, digest, eval run, dataset hash, thresholds, approver, times) to the evidence container, and publish the Release as the immutable-releases page advises: draft, attach `release-record.json`, `gate-result.json` and `refusals.json`, publish with `gh release edit --draft=false`, then `gh release verify` [gh-immutable], [gh-release-create]. The served-image check runs at the start of every run.
+- Does: the flow of spec 5.9. Candidate job (`dev`): pin the served version, build and push, attest the digest [gh-attest-readme], create the version, wait for `active` with the manage page's polling pattern [manage], create the pinned session and run the smoke test, both through the gateway's agent route when it is kept (D80), run the gates. Promote job (`dev-promote`, the owner approves in the browser): confirm the candidate is still active and the served version unchanged, `az acr login` then `gh attestation verify oci://...@<digest> --repo ... --signer-workflow ...` [gh-attest-verify], move the selector, write the release record (commit, pull request, candidate and Foundry version, digest, eval run, dataset hash, thresholds, approver, times) to the evidence container, and publish the Release as the immutable-releases page advises: draft, attach `release-record.json`, `gate-result.json` and `refusals.json`, publish with `gh release edit --draft=false`, then `gh release verify` [gh-immutable], [gh-release-create]. The served-image check runs at the start of every run.
 - Proof: spec 9.2 rows for approval and promotion, provenance, traceability; `gh release verify` reports the release attestation.
 - Owner: the approval (D41); never a session. Azure writes: the selector move; £0.
 - Risk: an immutable release cannot be fixed after publication; the draft step is what prevents a half-made release.
@@ -386,14 +439,14 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 ### Step 1.12 Workbook v0 (0.5 day)
 
 - Files: `infra/workbook/salon-ops.json`, `infra/modules/monitoring.bicep` (the `Microsoft.Insights/workbooks@2023-06-01` resource with `serializedData` from the file, which has no Azure Verified Module) [bicep-workbook].
-- Does: four views by tenant and agent: tokens, cost in pounds from the rates in spec section 8, latency percentiles, eval results from the gate's custom events; a fifth, tool calls from the gateway's `mcp_tool_calls` metric (D71).
+- Does: four views by tenant and agent: tokens, cost in pounds from the rates in spec section 8, latency percentiles, eval results from the gate's custom events; a fifth, tool calls from the gateway's `mcp_tool_calls` metric (D71); a sixth, calls to the agent from its `agent_calls` metric, if the route is kept (D80).
 - Proof: a screenshot in the pull request (spec 9.2).
 - Owner: none. Azure writes: the Workbook, £0, in the persistent group, deployed by the bootstrap's Bicep so that no session touches that group (D40).
 
 ### Step 1.13 Exit demonstrations, the stranger test, the council gate (1 day)
 
 - Files: `README.md` (the stranger instructions), `docs/journal/`, the spec's section 9.2 evidence links.
-- Does: every row of spec 9.2 run and its evidence named; `README.md` gains a "follow one release" section of under ten steps, from a Release to its commit, pull request, plan step, eval run, approver, trace and audit row, which is the auditor's walk the intent's section 4 promises; the owner clones to a fresh directory and times one setup command plus one pipeline run (spec 5.11); `/council` on the Phase 1 pull request, as spec 9.2 requires.
+- Does: every row of spec 9.2 run and its evidence named; the row for the agent path (D80), if the route is kept, is shown with the three test identities as in step 1.14: a call served, rate-limited and metered through the route and authorised again by Foundry; 403 at the gateway without a caller row; 429 over the caller rate; and, where step 0.9 found a join key, a call at the agent's own address reported by the reconciliation check; `README.md` gains a "follow one release" section of under ten steps, from a Release to its commit, pull request, plan step, eval run, approver, trace and audit row, which is the auditor's walk the intent's section 4 promises; the owner clones to a fresh directory and times one setup command plus one pipeline run (spec 5.11); `/council` on the Phase 1 pull request, as spec 9.2 requires.
 - Proof: the 9.2 table with evidence; the stranger test time recorded.
 - Owner: `login` for the stranger test.
 
@@ -403,13 +456,13 @@ Five and a half days of work in five; the cut order in section 11 makes it fit.
 
 | Resource | Module | Settings the plan fixes | Source |
 |---|---|---|---|
-| API Management | `br/public:avm/res/api-management/service:0.14.4` | `sku: 'BasicV2'`, `skuCapacity: 1`, the user-assigned identity `id-maf-gateway` (D73), `loggers` and `serviceDiagnostics` for Application Insights at 100 per cent sampling, `namedValues`, `policies`; the MCP server entity as a raw `service/apis` child at 2025-09-01-preview with `type: 'mcp'` | [avm-apim], [apim-mcp-rest] |
+| API Management | `br/public:avm/res/api-management/service:0.14.4` | `sku: 'BasicV2'`, `skuCapacity: 1`, the user-assigned identity `id-maf-gateway` (D73), `loggers` and `serviceDiagnostics` for Application Insights at 100 per cent sampling, `namedValues`, `policies`; the MCP server entity as a raw `service/apis` child at 2025-09-01-preview with `type: 'mcp'`; the agent API (D80) through the module's `apis` parameter with its `operations` and `policies`, or as raw children as the MCP entity is, path `agent`, six operations and `agent.xml`; the diagnostic with `httpCorrelationProtocol: 'W3C'` and a `headers` list that never names `Authorization` | [avm-apim], [apim-mcp-rest], [apim-diag] |
 | Storage accounts (two) | `br/public:avm/res/storage/storage-account:0.33.1` | `allowSharedKeyAccess: false`, `tableServices.tables`, per-table `roleAssignments` | [avm-storage] |
 | Container Apps | `br/public:avm/res/app/managed-environment:0.16.0` and `container-app:0.23.0` | `zoneRedundant: false`; `scaleSettings: {minReplicas: 0, maxReplicas: 2}`; user-assigned identity; `ingressExternal: true` | [avm-aca-env], [avm-aca] |
 | AI Search | `br/public:avm/res/search/search-service:0.13.0` | `sku: 'free'`, `disableLocalAuth: true` | [avm-search] |
 | Log Analytics and Application Insights | `br/public:avm/res/operational-insights/workspace:0.16.1`, `insights/component:0.8.0` | `dataRetention: 31`, `dailyQuotaGb: '1'` | [avm-law], [avm-ai] |
 | Budget | `br/public:avm/res/consumption/budget/sub-scope:0.1.0` twice (one `Actual` with 50, 80, 100; one `Forecasted` with 100), `resourceGroupFilter` on both groups | | [avm-budget] |
-| Identities | `br/public:avm/res/managed-identity/user-assigned-identity:0.6.0` with `federatedIdentityCredentials` | issuer, subject per environment, audience | [avm-uami] |
+| Identities | `br/public:avm/res/managed-identity/user-assigned-identity:0.6.0` with `federatedIdentityCredentials` | issuer, subject per environment, audience; seven identities, the three test identities with the `dev` subject only (D82) | [avm-uami] |
 | Container registry | `br/public:avm/res/container-registry/registry:0.13.1` | `acrSku: 'Basic'`, `azureADAuthenticationAsArmPolicyStatus: 'enabled'` | [avm-acr] |
 | Foundry resources A and B | `br/public:avm/res/cognitive-services/account:0.19.1` for the accounts and resource B's `deployments` (`raiPolicyName`, `versionUpgradeOption`); raw `Microsoft.CognitiveServices/accounts/projects@2026-07-01` and `accounts/raiPolicies@2026-07-01` because the module creates neither | `kind: 'AIServices'`, `allowProjectManagement: true`, `disableLocalAuth: true` | [avm-cog], [bicep-projects], [bicep-rai] |
 | Custom roles | raw `Microsoft.Authorization/roleDefinitions@2022-04-01` at subscription scope with `dataActions` | section 9.3 | [custom-role-bicep], [roledef] |
@@ -429,10 +482,12 @@ tenant across two accounts [avm-foundry-ptn].
 2. Create the index `faq-<tenant_id>` with `SearchIndexClient.create_index`, fields `id` (key), `title`, `content`, `source`, keyword only (Bicep cannot create an index) [search-create].
 3. Seed the catalogue partition and the FAQ documents from `data/<tenant_id>/`.
 4. Register the agent identity: read `instance_identity.principal_id` from the agent [manage] and upsert the `registry` row `identity | <object id> -> tenant_id, agent_id`; on a clean clone this step waits for the first pipeline run.
-5. Generate the gateway's named values from the `registry` table and deploy them; `maf check registry` compares the two afterwards (spec 3.3).
+5. Generate the gateway's copy from the `registry` table and deploy it: two named values, `registry-agents` for the agent rows and `registry-callers` for the caller rows, each a JSON object that the policies parse. They are kept apart so that a caller row can never be read as a registration on the model and tool routes (D80). A named value holds at most 4,096 characters [apim-limits], which is some tens of rows and enough for Phase 1; `maf tenant create` fails if a copy would not fit. How the JSON is encoded so that it survives substitution into a policy expression is settled in spike S1, test 4, and is unverified until then. `maf check registry` compares both copies with the table afterwards (spec 3.3). This step runs again after steps 4, 8 and 9.
 6. Create the project connection with `azd ai connection create <name> --kind remote-tool --target <gateway MCP endpoint> --auth-type agentic-identity --audience <salon-mcp app id uri>` [mcp-auth], which the ARM connection types cannot express today [bicep-connections].
 7. Append the provisioning record to the audit table: who, when, tenant, a hash of the parameters, the deployment id (D25).
-8. Register the project's managed identity in the `registry` table as the eval judge's caller, with its own quota, so the judge's tokens are metered and not charged to the tenant (D75).
+8. Register the project's managed identity in the `registry` table for the eval judge, with its own quota, so the judge's tokens are metered and not charged to the tenant (D75). This is an agent row, in the `identity` partition, because only agent rows count on the model route; it is not a caller row (D80).
+9. Write the caller rows (D80): for the owner, `id-maf-pipeline`, `id-maf-test-caller` and `id-maf-test-norole`, upsert a `registry` row in the `caller` partition with the row key `<caller object id>|<agent_id>`. `id-maf-test-norow` gets none (D82). A caller row grants nothing on the model and tool routes, and an identity that may call two agents has two rows (spec 5.3). The admin script is the only writer; `maf tenant caller add` and `remove` change one row. Like step 4, this waits for the first pipeline run on a clean clone, because the agent must exist.
+10. Assign Foundry Agent Consumer at agent scope (D82) to `id-maf-test-caller` and `id-maf-test-norow`, by CLI with the role's id, at the scope `/subscriptions/<subscription>/resourceGroups/rg-maf-dev/providers/Microsoft.CognitiveServices/accounts/fnd-maf-agent/projects/<tenant_id>/agents/<agent_id>` [rbac-foundry]. `id-maf-test-norole` gets none. The owner and the pipeline identity already hold the right to call the agent, through Foundry Project Manager and Foundry User on the project [ha-perm].
 
 ### 9.3 Custom role definitions
 
@@ -456,15 +511,16 @@ Search Index Data Reader `1407120a-92aa-4202-b7e9-c0e197c71c8f` per index; Searc
 Contributor `7ca78c08-252a-4471-8644-bb5ff32d4ba0` and Search Index Data Contributor
 `8ebe5a00-799e-43f5-93ac-243d3dce84a7` for the admin script's own identity [search-rbac]; Cognitive
 Services OpenAI User `5e0bd9bd-7b93-4f28-af87-19fc36ad61bd` for the gateway on resource B [roles-ai];
-Foundry Agent Consumer `eed3b665-ab3a-47b6-8f48-c9382fb1dad6` for the named test identities at agent
-scope, assigned by CLI because the portal "supports assigning Foundry Agent Consumer only at the
+Foundry Agent Consumer `eed3b665-ab3a-47b6-8f48-c9382fb1dad6` for the test identities `id-maf-test-caller`
+and `id-maf-test-norow` at agent scope (D82), assigned by CLI because the portal "supports assigning Foundry Agent Consumer only at the
 Foundry account scope" [rbac-foundry]; Foundry User `53ca6127-db72-4b80-b1b0-d745d6d5456d` for the
 pipeline identity on the project, the least built-in role carrying `agents/write` (D78), and
 Foundry Project Manager `eadc314b-1a2d-4efa-be10-5d325db5065e` for the owner only [rbac-foundry],
 [ha-perm]. The Foundry account purge in `maf down --all` and the gateway purge in `maf up` run under
 the login that runs them, in practice the owner's, which holds subscription Owner, because the purge
 page says Contributor "must be assigned at the subscription level" and a purge-only role is
-unverified there [purge].
+unverified there [purge]. The gateway's identity holds no role on the agent, on its project or on
+resource A: on the agent route it forwards the caller's token (D80).
 
 ### 9.4 How the gate step reads the eval result (D56)
 
@@ -583,32 +639,86 @@ updates [gh-dependabot-actions].
 | `azd deploy` overwrites the pin | 1.4 | The pipeline uses the SDK; azd is local only | The served-image check |
 | Admin bypass left on for `dev-promote` | 0.7 | The bootstrap reads `can_admins_bypass` back and fails | `maf bootstrap github --check` |
 | Secret scanning off despite a public repository | 0.7 | PATCH, with UI steps as the fallback | The planted-key push refused |
+| No page describes API Management in front of a hosted agent's own endpoint [custom-agent] | 0.9 | Test 6 in its own half-day (D81); a failure or an overrun drops the route to Phase 2 and callers use the Foundry endpoint | ADR 0002 names the outcome and the reason |
+| The agent path is governed, not closed: the agent's own address answers a role holder, and Microsoft's pages disagree on whether the endpoint can be made private [ha-vnet], [ha-config] | 1.14 | Stated wherever the route is shown; the reconciliation check where a join key exists; closing the path is a Phase 2 decision (D80) | Spec section 11; the check's run |
+| The gateway records a caller's Foundry token, which is valid beyond this agent | 1.14 | The diagnostic's header list never names `Authorization`; body logging off; policy changes by pull request | The e2e query for a bearer value returns nothing |
+| The caller limit trips inside a gate run | 0.15, 1.9, 1.14 | The limit is a deploy parameter set from the count S6 records; a 429 is failed-to-run, not a regression | ADR 0006; a gate run without a 429 |
+| No key joins an agent turn to its gateway request | 0.9 | No detection is claimed; the spec's bypass statements are withdrawn in step 0.18 | ADR 0002 |
+| Evaluation turns cannot be told from a bypass | 0.15, 1.14 | The check reports and does not fail | ADR 0006 |
+| A caller row and a Foundry role drift apart | 1.2 | Stated, not prevented, in Phase 1: `maf check registry` compares the table with the gateway's copy, not with role assignments (spec section 4) | None in Phase 1 |
+| The route is dropped in step 0.9 or cut in Phase 1 | 0.9, 1.14 | One setting, `MAF_AGENT_BASE_URL`, returns callers to the Foundry endpoint; step 1.14 is not built | The smoke test passes on the direct address |
 | Phase 0 overruns | 11 | The cut order | The journal |
 
-## 11. If the Phase 0 two-week box is at risk (D30, D48)
+## 11. Schedule and cut orders (D30, D48, D81)
 
-Items fall in this order, and move to after Phase 1:
+### 11.1 Schedule
 
-1. The cloud environment setup script (step 0.16, a quarter day).
-2. The verifier subagent (step 0.16, a quarter day).
-3. The telemetry attribution and IaC conventions skills (step 0.16); tenant isolation and MCP security stay.
-4. The test-edit hook (step 0.16).
+Phase 0 is 10.5 working days and Phase 1 is 16 (D81). Both are filled exactly. There is no slack,
+and 11.2 says what gives if a box is at risk.
 
-Never cut: the bootstrap (0.2, 0.7), CI with OIDC (0.8), the repository protections (0.7), the
-secrets hook and scanning (0.16, 0.7), the seed eval set (0.14), and spikes S1, S2, S5 and S6. In
-Phase 1 the order is spec section 10's: the Langfuse exporter, then the Workbook reduced to tokens
-and latency, then one model for every node, then the cost and latency gate conditions, then
-stylist choice.
+| Period | Steps and days | Sum |
+|---|---|---|
+| Phase 0, week 1 | 0.1 (0.25), 0.2 (0.5), 0.3 (0.25), 0.4 (1), 0.5 (0.5), 0.6 (1), 0.7 (0.5), 0.8 (1) | 5.0 |
+| Phase 0, week 2 and a half-day | 0.9 (0.5), 0.10 (1), 0.11 (0.5), 0.12 (0.5), 0.13 (0.25), 0.14 (0.5), 0.15 (1), 0.16 (0.25), 0.17 (0.5), 0.18 (0.5) | 5.5 |
+| Phase 0 | | 10.5 of 10.5 |
+| Phase 1, week 1 | 1.1 (2), 1.2 (1.25), 1.3 (2) | 5.25 |
+| Phase 1, week 2 | 1.4 (1), 1.5 (1.5), 1.14 (0.75), 1.6 (1), 1.7 (1), 1.8 (0.5) | 5.75 |
+| Phase 1, week 3 | 1.9 (1.5), 1.10 (1.5), 1.11 (0.5), 1.12 (0.5), 1.13 (1) | 5.0 |
+| Phase 1 | | 16.0 of 16 |
+
+Two lines cut across the steps. They are already inside the sums above and are not added to them.
+
+| Line | Days | Where |
+|---|---|---|
+| The gateway's agent route (D80) | 1.5 | 0.5 in step 0.9; 0.25 in step 1.2; 0.75 in step 1.14. What it changes in steps 0.10, 0.12, 0.15, 1.4 to 1.7, 1.9, 1.10, 1.12 and 1.13 is a base address and a few assertions, inside those steps' estimates |
+| The `maf` command line (D79) | about 4 | Steps 0.2, 0.3, 0.7, 0.8, 0.10, 0.15, 1.2, 1.9, 1.10 and 1.11 (section 2) |
+
+How week 2 of Phase 0 came to fit. Before D81 it held 5.5 days of work in 5, and this plan said the
+cut order would make it fit. D81 pays that half-day openly: the cloud environment setup script and
+the verifier subagent, a quarter of a day each, move to after Phase 1, which takes step 0.16 from
+0.75 to 0.25 day. Step 0.9 then adds the half-day D81 gave test 6, and the week is 5.5 days in a
+box of 5.5.
+
+### 11.2 Cut orders
+
+If a time-box is at risk, scope is cut in the order below and the date holds (D30, D48).
+
+Phase 0. The first two items of D48's order are applied already (D81). What remains, in order,
+moving to after Phase 1:
+
+1. The telemetry attribution and IaC conventions skills (step 0.16); tenant isolation and MCP security stay.
+2. The test-edit hook (step 0.16).
+
+Both are a small part of step 0.16's quarter-day, so Phase 0 has almost nothing left to cut. Step
+0.9 is not extended: if test 6 fails or its half-day runs out, the agent path becomes a Phase 2
+item and ADR 0002 records which it was (D80, D81).
+
+Never cut in Phase 0: the bootstrap (0.2, 0.7), CI with OIDC (0.8), the repository protections
+(0.7), the secrets hook and scanning (0.16, 0.7), the seed eval set (0.14), and spikes S1, S2, S5
+and S6.
+
+Phase 1, in the order of spec section 10:
+
+1. The Langfuse exporter (step 1.6).
+2. The gateway's agent route (D80). Step 1.14 is not built, the quarter-day in step 1.2 is not spent, callers go back to the Foundry endpoint through `MAF_AGENT_BASE_URL`, and the route becomes a Phase 2 item. This returns one day.
+3. The Workbook reduced to tokens and latency (step 1.12).
+4. One model for every node (step 1.3).
+5. The cost-per-conversation and latency conditions in the eval gate (step 1.9).
+6. Stylist choice; "any available" only (steps 1.1 and 1.3).
+
+Never cut in Phase 1 (spec section 10): tenant from identity, confirmation before writes, the
+gateway negative test, the eval gate with its write-path tests, the approval gate, the audit log.
 
 ## 12. Open questions for the owner
 
-None block acceptance. Four return with measurements: the daily token quota after S6 (D39), the
-search tier after S4 (D27), the tool rate limit after S1 (D71) and the judge route after S6 (D75).
+None block acceptance. Six return with measurements: the daily token quota after S6 (D39), the
+search tier after S4 (D27), the tool rate limit after S1 (D71), the judge route after S6 (D75),
+whether the agent path stays in Phase 1 after step 0.9, and its caller rate limit after S6 (D80).
 One is for information: the
 spec's section 7 pins the hosting protocol libraries at 2.1.0b2, and this plan pins the stable
 2.2.0 that `uv lock` resolves today; the spec row is corrected in step 0.18 with the spike results.
 
-## Appendix A. The three golden conversations as feature files (spec 5.11, D67)
+## Appendix A. The three golden conversations and the agent route's exit row as feature files (spec 5.11, 9.2, D67, D80)
 
 These are the signed behaviour. They live at `tests/features/book.feature`, `cancel.feature` and
 `faq.feature` and are executed by the BDD runner against (a) the graph run locally with
@@ -782,7 +892,50 @@ Feature: Answer a question from the salon's own knowledge
     And the reply declines and offers booking, cancelling or questions about the salon
 ```
 
-Signature: the owner signs these three features by committing this plan with this appendix
+The fourth feature is not a golden conversation. It is the exit row for the agent path (spec 9.2)
+written as a feature file, as D67 asks of the automatable exit rows, and it is added for D80. It
+lives at `tests/features/agent_route.feature`, is tagged `@exit`, and runs in the candidate job
+against the live gateway as the three test identities (D82); the local run does not execute it.
+It is built only if spike S1 kept the route (step 0.9).
+
+```gherkin
+@exit
+Feature: Calls to the agent cross the gateway
+  A caller reaches the gateway first. The gateway checks the token and the caller row, limits the
+  rate and counts the call, and passes the caller's own token on. Foundry authorises the caller
+  again (D80).
+
+  Background:
+    Given the agent "salon-agent" of tenant "salon-a" is served
+    And the gateway's agent route is deployed
+
+  Scenario: A caller with the role and a caller row is served through the route
+    Given the caller is "id-maf-test-caller"
+    When the caller asks "What are your opening hours?" through the gateway
+    Then the reply is HTTP 200 with an answer
+    And the gateway's agent_calls metric records the call for tenant "salon-a" and agent "salon-agent"
+    And the gateway's request record carries no bearer value
+
+  Scenario: A caller with the role and no caller row is refused at the gateway
+    Given the caller is "id-maf-test-norow"
+    When the caller asks "What are your opening hours?" through the gateway
+    Then the reply is HTTP 403 from the gateway
+    And the agent records no turn for this call
+
+  Scenario: A caller with a caller row and no role is refused by Foundry
+    Given the caller is "id-maf-test-norole"
+    When the caller asks "What are your opening hours?" through the gateway
+    Then the gateway passes the call on
+    And the reply is HTTP 403 from Foundry
+    And the agent records no turn for this call
+
+  Scenario: A caller over the rate limit is refused
+    Given the caller is "id-maf-test-caller"
+    When the caller sends more calls through the gateway than the caller rate limit allows in its period
+    Then at least one reply is HTTP 429 from the gateway
+```
+
+Signature: the owner signs these four features by committing this plan with this appendix
 marked "signed" in its heading; later changes go through a pull request that also updates the
 spec's section 5.11 if the behaviour changes.
 
@@ -1264,3 +1417,15 @@ that was read.
 | [cc-skills] | https://code.claude.com/docs/en/skills |
 | [cc-agents] | https://code.claude.com/docs/en/sub-agents |
 | [cc-plugins] | https://code.claude.com/docs/en/plugins/install |
+| [caf-agents] | https://learn.microsoft.com/azure/cloud-adoption-framework/ai-agents/integrate-manage-operate |
+| [custom-agent] | https://learn.microsoft.com/azure/foundry/control-plane/register-custom-agent |
+| [ha-vnet] | https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/virtual-networks |
+| [ha-config] | https://learn.microsoft.com/azure/foundry/agents/how-to/configure-agent |
+| [apim-validate] | https://learn.microsoft.com/azure/api-management/validate-azure-ad-token-policy |
+| [apim-a2a] | https://learn.microsoft.com/azure/api-management/agent-to-agent-api |
+| [isolate] | https://learn.microsoft.com/azure/foundry/agents/how-to/isolate-sessions-per-user |
+| [apim-expr] | https://learn.microsoft.com/azure/api-management/api-management-policy-expressions |
+| [apim-diag] | https://learn.microsoft.com/en-us/rest/api/apimanagement/diagnostic/create-or-update?view=rest-apimanagement-2024-05-01 |
+| [apim-limits] | https://learn.microsoft.com/azure/api-management/api-management-gateways-overview |
+| [apim-sse] | https://learn.microsoft.com/azure/api-management/how-to-server-sent-events |
+| [azure-login] | https://raw.githubusercontent.com/Azure/login/master/README.md |
