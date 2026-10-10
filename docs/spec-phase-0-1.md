@@ -1,8 +1,8 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan), for D80 (the gateway also fronts the agent endpoint, gated by spike S1) and for D81 and D82 (the time the agent route is given, and the test identities); corrected the same day for principal review 06 of the plan (the hosting library pins, the owner's role, and two rows that D73 and D74 had missed), and revised for D83 to D88 (the owner's decisions after that review). Date: 2026-10-04.
-Stage: 2 of 6 (Design). Reads: docs/intent.md revision 18 (decisions D1 to D88).
-Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217.
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan), for D80 (the gateway also fronts the agent endpoint, gated by spike S1) and for D81 and D82 (the time the agent route is given, and the test identities); corrected the same day for principal review 06 of the plan (the hosting library pins, the owner's role, and two rows that D73 and D74 had missed), and revised for D83 to D88 (the owner's decisions after that review); revised on 2026-10-10 for D89 to D96, the owner's decisions at the AgentOps coverage check before Build (typed contracts, the output filter shown refusing by a test identity of its own, a nightly evaluation of the served version, the dataset growth loop, the Phase 1 box and its cut order, and one table of practice by phase). Date: 2026-10-10.
+Stage: 2 of 6 (Design). Reads: docs/intent.md revision 19 (decisions D1 to D96).
+Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217. The changes for D89 to D96 were read independently before the plan was derived from them: docs/council/07-agentops-coverage-principal-review.md.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
 
 ## 1. Status and scope
@@ -22,7 +22,8 @@ line (D30); real personal data (D29).
 
 Citation rule: every design claim carries a key in square brackets that resolves to a URL in
 section 13. Every URL was opened on 2026-10-03, in the design session, the gate session or the
-review session.
+review session. The rows added for D89 to D96 were opened on 2026-10-10, and their quotations
+were matched to the pages by script that day.
 Prices are from the Azure Retail Prices API on the same day, in GBP, and are marked [prices].
 Microsoft prices in USD: "Other non-USD prices returned by the API are for your reference to help
 you estimate budget expenses" [prices-api]. Where something could not be verified, the text says so
@@ -145,6 +146,11 @@ the Azure Retail Prices API at the gate and are in section 8. What remains:
 | Whether a hosted agent's endpoint can be made private | Microsoft's pages disagree. One section says "The agent endpoint stays public in this preview" [ha-vnet]. The same page says the account "is reachable only through a private endpoint, for both data-plane and ARM calls" [ha-vnet], and the configuration page says that with public network access disabled "Other agent protocols and project APIs remain private" [ha-config] | Not needed in Phase 1, which has no private networking (D52); settled in Phase 2 with the tool-path lock (D80) |
 | Whether two `FixedRatio` rules split traffic | Two pages say "Traffic splitting between versions isn't supported" [ha], [manage]; a preview page documents a 90/10 canary [azd-prod] | Five minutes in spike S5 |
 | The price of the evaluations meter and of Defender for AI Services after its trial | The pricing pages render no figure | Not a planning assumption; Defender is disabled before its trial ends (D66) |
+| How the LangChain integration passes a schema to the model for structured outputs | Its README shows plain invocation only [lc-azure] | Settled when the graph is first built; the typed models and their validation in code do not depend on the answer (D90) |
+| What Foundry's job that turns traces into a dataset returns when the traces hold no message content | The page says its rows hold "the description, query, and response for each" and does not say [traces-dataset] | Not used in Phase 1; the Phase 2 eval twin (D93) |
+| Whether an evaluation scheduled by Foundry can target an agent | The quality run in Microsoft's scheduled sample scores a column of recorded responses [eval-sched-sample] | Not needed: the nightly workflow makes the call itself (D92) |
+| How a continuous evaluation rule reads a hosted agent | The pages do not say; the tools page pairs "evaluation rules for prompt agents, or scheduled evaluation runs for hosted agents" [foundry-mcp-tools] | Phase 6 (D92) |
+| Whether a custom blocklist can sit on a hosted agent's own guardrail policy | The page for hosted agent guardrails does not mention blocklists [guardrail] | Not claimed; the test is on the model deployments (D91) |
 
 ### 2.6 Decisions after principal review 04
 
@@ -188,6 +194,23 @@ Finding numbers refer to docs/council/04-spec-phase-0-1-principal-review.md.
 | Finding F5 and the three options carried from session 05 | The pipeline's calls to the agent are made as the consumer-only test identity, if spike S6 allows; the other two options are recorded and not built | D86 |
 | Finding F9: the estimates | Phase 0 is 12 working days and Phase 1 is 18 | D87 |
 | Finding F15: which tests are feature files | The golden conversations, the scripted write tests and the agent route's exit row; the other exit rows are end-to-end tests | D88 |
+
+### 2.8 Decisions at the AgentOps coverage check before Build
+
+The owner asked, before any code, whether the intent, this spec and the plan were aligned and
+consolidated on AgentOps practice. The check, its coverage table and its sources are in
+docs/council/07-agentops-coverage-principal-review.md.
+
+| What the check found | Answer | Decision |
+|---|---|---|
+| The workstation cannot hold Docker Desktop | None is installed. The pipeline builds release images; the Phase 0 spike images are built in the registry. This changes the plan, not this spec's design | D89 |
+| Pydantic was named nowhere, and nothing defined the shape of the model's outputs, of the answer or of the evidence records | Typed contracts at the model, tool and record boundaries; exported schemas compared on every pull request; a fixed reply to output that fails validation | D90 |
+| The output content filter was neither claimed nor shown refusing | A planted term in a completion blocklist on the model deployments, a test that expects the block, and a fixed reply from the graph | D91 |
+| No scheduled evaluation of the served version, which Microsoft names as the drift check and which needs no message content | The nightly workflow evaluates the served version on a sample of 20 rows. Continuous evaluation of live traffic stays in Phase 6 | D92 |
+| The dataset growth loop built a row from a trace, which holds no message content (D46); the control bands of the intent were defined nowhere | The loop is restated in section 5.11; its drill runs in Phase 2 on the eval twin | D93 |
+| What pays for D90 to D92, and where they sit if Phase 1 is at risk | Phase 1 is 19 working days; Phase 0 stays 12; nothing is cut. In the cut order the nightly evaluation is third and the filter's test fourth | D94 |
+| No single table said which practice is built in which phase | Section 5.12 | D95 |
+| The independent read of intent revision 19: the filter's test reused the low-quota identity, against D84, and would have failed on a second run in a day | A fifth test identity, with an agent row of its own and a quota of 5,000 tokens | D96 |
 
 ## 3. Architecture
 
@@ -249,7 +272,7 @@ flowchart LR
 | Component | Service | Why this one | Source |
 |---|---|---|---|
 | Salon agent | LangGraph graph hosted with `langchain_azure_ai.agents.hosting`, Responses protocol | Official hosting path; the platform supplies endpoint, identity, sessions and scaling | [lg-hosted], [ha] |
-| Conversation state | `FoundryCheckpointSaver` on Foundry's durable state store | Used to "persist LangGraph runtime state in Foundry's durable state store"; needs container protocol 2.0.0 | [lc-azure] |
+| Conversation state | `FoundryCheckpointSaver` on Foundry's durable state store | Used "to keep LangGraph runtime state in Foundry's durable state store"; needs container protocol 2.0.0 | [lc-azure] |
 | Tool server | FastMCP on Azure Container Apps, Streamable HTTP, reached through the gateway's MCP pass-through (D71) | Reuses Azure-Samples/python-mcp-demos, which deploys FastMCP to Container Apps with azd; API Management exposes an existing MCP server on Basic v2 | [mcp-demos], [apim-mcp] |
 | Gateway | API Management Basic v2 with `llm-token-limit` and `llm-emit-token-metric` on the model path, and `validate-azure-ad-token`, `rate-limit-by-key` and `emit-metric` on the tool path (D71) and on the agent path (D80) | The only v2 tier creatable near UK South; the MCP pass-through is generally available on it; Microsoft describes the AI gateway as governing models, tools and agents, where agents means A2A agent APIs and registered custom agents | [apim-region], [apim-mcp], [apim-rate], [apim-aigw] |
 | Models | gpt-5.4-nano and gpt-5.4-mini in a Foundry resource that only the gateway's identity can call (D50) | Closes the implicit path from the agent's own project | [ha-perm], [model-regions] |
@@ -263,7 +286,7 @@ Two groups. Names are proposals for the implementation plan.
 
 | Group | Lifetime | Contents |
 |---|---|---|
-| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity and teardown identity, each with federated credentials; workload identity for salon-mcp; the gateway's user-assigned identity (D73); the four test identities, each with a federated credential (D82, D84); Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release records; container registry; Azure Workbook; the cost budget (D51) |
+| Persistent (`rg-maf-persist`) | Created once by the bootstrap; never torn down | Pipeline identity and teardown identity, each with federated credentials; workload identity for salon-mcp; the gateway's user-assigned identity (D73); the five test identities, each with a federated credential (D82, D84, D96); Log Analytics workspace and Application Insights; storage account holding the audit table, eval results and release records; container registry; Azure Workbook; the cost budget (D51) |
 | Environment (`rg-maf-dev`) | Created by `up`; kept between working days; deleted only by a full `down` | Two Foundry resources, one for the tenant projects and the hosted agent and one for the model deployments; the gateway, which alone is deleted nightly and purged by `up` the next morning (D37, D74); Container Apps environment and salon-mcp; storage account holding bookings, catalogue and the tenant registry; search service |
 
 ```mermaid
@@ -370,11 +393,11 @@ with quotations is section 5 of docs/council/04-spec-phase-0-1-principal-review.
 | Attribution keys | None; span attributes, five on the GenAI names (D59) | None | None | Read by the agent views | 5.6 |
 | Release | A version plus a selector move | None | Immutable GitHub Release with the record as an asset; release attestation | Eval result record | 5.9 |
 | Eval gate | A batch evaluation that calls the agent by name and version, compared with the served version | None | ai-agent-evals Action, pinned by SHA; the project API as the readable route (D56) | Eval result records | 5.8 |
-| Guardrail | Policy on the agent definition, by full resource id | None | Negative test in the pipeline | None | 5.7 |
+| Guardrail | Policy on the agent definition, by full resource id; one policy with a completion blocklist on the two model deployments (D91) | The filter test identity (D96) | Negative tests in the pipeline | None | 5.7 |
 | Audit | None; the project's own append-only table | Agent identity in every row | Release records | None | 5.3 |
 | Teardown | None; the gateway is a separate service | Teardown identity with a delete-and-read role and no purge action (D74) | Nightly workflow | None | 5.10 |
 | Dashboard | Portal Traces view; the agent dashboard (preview) | None | None | Workbook v0 for cost and the tenant join; the Agents view (preview) | 5.6 |
-| Maintain loop | Continuous evaluation and Insights in Foundry, both preview, Phase 6 | None | None | Budget and token alerts | Intent section 10 |
+| Maintain loop | A nightly evaluation of the served version through the project evaluation API, Phase 1 (D92); continuous evaluation and Insights in Foundry, both preview, Phase 6 | None | The nightly workflow, whose failed run GitHub reports to the owner | Budget and token alerts; the nightly result record | 5.8, 5.11, 5.12 |
 
 ## 4. Identity flow
 
@@ -442,6 +465,7 @@ What each identity holds (D42). Exact role definitions are for the implementatio
 | Test identity that Foundry refuses (D82) | A caller row | The role; anything else |
 | Test identity that the gateway refuses (D82) | Foundry Agent Consumer at project scope [ha-perm] (D83) | A caller row; anything else |
 | Low-quota test identity (D84) | An agent row with a quota of 2,000 tokens | Any role; a caller row |
+| Filter test identity (D96) | An agent row with a quota of 5,000 tokens | Any role; a caller row |
 
 Every identity that may call the agent through the gateway, which is the owner and two of the
 test identities, has a caller row in the registry for each agent it may call (D80). The pipeline
@@ -452,10 +476,10 @@ agent [ha-perm], so the pipeline identity holds it, and so does whoever created 
 platform granted that role on creation. Such a principal with no caller row is refused at the
 gateway and answered at the agent's own address.
 
-The test identities are four user-assigned managed identities in the persistent group, each with
+The test identities are five user-assigned managed identities in the persistent group, each with
 a federated credential for the `dev` environment, so a job there signs in as one with no stored
-secret [gh-oidc] (D82, D84). Three show the agent path; the fourth carries the low quota of
-section 5.4. The role is assigned at project scope by the tenant module, because an agent-scope
+secret [gh-oidc] (D82, D84, D96). Three show the agent path; the fourth carries the low quota of
+section 5.4, and the fifth makes the output filter's test call of section 5.7 and does nothing else. The role is assigned at project scope by the tenant module, because an agent-scope
 assignment needs the agent to exist and the first pipeline run needs the role in place (D83). Foundry's permission to call an agent can be held by "the calling user or
 service principal" [ha-perm]. Entra test users were not adopted: creating one needs a password
 [az-ad-user], security defaults require multifactor authentication for the Azure CLI
@@ -531,15 +555,15 @@ A LangGraph graph with four intents: book, cancel, FAQ, out of scope. Reschedule
 
 | Node | Does | Model |
 |---|---|---|
-| classify | Picks the intent | Small |
-| extract | Pulls service, stylist, date and time, or reference and contact | Small |
+| classify | Picks the intent, as a typed value (D90) | Small |
+| extract | Pulls service, stylist, date and time, or reference and contact, as a typed model (D90) | Small |
 | validate | Checks opening hours, duration, that the stylist exists, and that the slot is in the future. Plain code, no model | None |
 | availability | Calls `get_availability` | None |
 | confirm | `interrupt()` showing the normalised booking or cancellation | None |
 | write | Calls `create_booking` or `cancel_booking` after approval | None |
-| retrieve and answer | Calls `search_faq`, answers only from returned passages, and cites their ids | Mid |
+| retrieve and answer | Calls `search_faq`, answers only from returned passages, and returns the answer text with a list of the ids it cites (D90) | Mid |
 | check citations | Refuses the answer unless every cited id is among the passages returned. No passages, or a failed check, gives "I do not know". Plain code (D46) | None |
-| refuse | Declines out-of-scope requests | Small |
+| refuse | Declines out-of-scope requests. It also gives a fixed reply, with no model call, when another node hands it a reason: model output that failed validation (D90) or a filtered completion (D91) | Small |
 
 The booking path, with the confirmation interrupt and the checkpoint that survives an idle sandbox:
 
@@ -578,6 +602,22 @@ sequenceDiagram
 - **Tools are called by code.** The graph's nodes call the tools; the model never chooses a tool.
   The answering node has no tools at all, which is what the poisoned-passage test in section 5.7
   demonstrates.
+- **Typed contracts (D90).** Pydantic 2 is the one library for typed data (section 7). The
+  classifier returns one of the four intents, the extraction returns a model whose fields are
+  the ones the table above names, and the answering node returns the answer text and a list of
+  cited ids, which is what the citation check reads. All three are requested as structured
+  outputs, which "make a model follow a JSON Schema definition that you provide as part of your
+  inference API call" [structured-outputs]; Microsoft's models page lists the capability for both
+  chosen models [models]. Every model output is validated in code, whatever the model was asked
+  for. Output that fails validation is neither repaired nor retried: the node hands `refuse` a
+  reason, the customer gets a fixed reply that asks them to rephrase, and no tool is called.
+  There are three fixed replies and they are different texts: the answer that the agent does
+  not know, when retrieval or the citation check fails (D46); a request to rephrase, when output
+  fails validation; and a statement that the agent cannot answer, when a completion is filtered
+  (section 5.7, D91). The graph's state is a `TypedDict`, because with a Pydantic state "Run-time
+  validation only occurs on inputs to the first node in the graph, not on subsequent nodes or
+  outputs" [lg-state]; the typed values are the state's fields. How the LangChain integration
+  passes the schema to the model is in section 2.5.
 - **Confirmation.** With the Responses protocol, a pending interrupt surfaces as an
   `mcp_approval_request` item and the client resumes with an `mcp_approval_response` [lg-hosted].
   Microsoft's own sample does this with conversation-scoped checkpointing [sample-hitl]. Both
@@ -619,6 +659,13 @@ Python client directly; no LangChain adapter is used (D61). Versions are pinned 
 | `create_booking(slot, service, stylist, name, contact, idempotency_key)` | Write | The key is derived by the agent from the conversation and the confirmed proposal |
 | `cancel_booking(reference, contact)` | Write | Both values must match the stored booking (D33) |
 
+Each tool's parameters and result are Pydantic models (D90). FastMCP builds the input schema from
+them and refuses an argument the schema does not declare: it declares additional properties false
+"on the generated schema and enforces it, so the same call fails" [fastmcp-docs]. That is the
+mechanism behind the rule in section 4 that no tool accepts a tenant_id. The four tool schemas, as
+the server lists them, are exported to a committed snapshot and compared on every pull request
+(section 5.9).
+
 Every call is logged to the audit table with the tenant, the agent identity, the tool, a hash of
 the arguments and the outcome. The token checks follow Microsoft's list for an Entra-protected MCP
 server: signature, issuer, tenant, audience and expiry, then authorisation of the subject
@@ -651,6 +698,10 @@ Table Storage, authorised only through Entra roles [table-entra].
 - **Slots reserved for evaluation.** The scripted write tests in section 5.8 book only slots set
   aside for them and clear those slots before each run, so one run cannot change the result of the
   next (D53).
+- **Typed rows (D90).** Rows are read and written through Pydantic models, in salon-mcp and in
+  the admin script alike, so a row with a missing or malformed field fails where it is read and
+  not inside a gateway policy expression. The gateway's copy of the registry is generated from
+  the same models.
 
 ### 5.4 Gateway
 
@@ -666,7 +717,8 @@ Policies live in the repository and are deployed with the gateway each time `up`
   held on the caller's agent row and read by a policy expression, which `token-quota` allows
   [apim-limit]; its default, 150,000, is a deploy parameter (D84). The low-quota test identity,
   a managed identity with an agent row of its own, has a quota of 2,000 tokens, so the 403
-  demonstration costs pence. Section 8 gives the cost of these figures.
+  demonstration costs pence. The filter test identity has a row with 5,000 tokens, far above what its
+  test spends, so that test passes on every run of a day (D96). Section 8 gives the cost of these figures.
 - **Why daily.** The policy "tracks token usage independently at each gateway where it is applied"
   [apim-limit], and the gateway is purged every night, so a monthly counter is expected to restart
   with each rebuild. Spike S1 tests that. The monthly figure, 2,000,000 tokens, is therefore
@@ -783,7 +835,8 @@ has not been measured.
 ### 5.6 Telemetry and the dashboard
 
 - **Tracing.** `AzureAIOpenTelemetryTracer` emits spans that follow the OpenTelemetry GenAI
-  conventions for agent steps, model calls and tool calls [lc-traces].
+  conventions for agent steps, model calls and tool calls [lc-traces]. Microsoft states that
+  "Tracing is generally available for prompt and hosted agents" [trace-concept].
 - **Attribution keys (D54, D59).** All nine keys go on every span the agent emits. Five use the
   OpenTelemetry GenAI names, `gen_ai.agent.id`, `gen_ai.agent.version`, `gen_ai.conversation.id`,
   `gen_ai.tool.name` and `gen_ai.request.model` [semconv-agent], [semconv-spans], because the
@@ -806,7 +859,14 @@ has not been measured.
   the gateway's agent route hands its own trace context on to the agent is recorded in spike S1
   (D80).
 - **Content.** Message content recording is off (`enable_content_recording=False`) [lc-traces],
-  in eval sessions too (D46). Data is synthetic, but the control is shown working.
+  in eval sessions too (D46). Data is synthetic, but the control is shown working. Microsoft's advice
+  for LangChain and LangGraph tracing is the same: "Disable content recording in production
+  environments to protect sensitive data" [trace-framework]. What this costs is stated in
+  section 5.11: a trace cannot supply an eval row. One fact for Phase 2, when the eval twin
+  records content (D77): Microsoft's page on recorded content, in preview, says "Starting
+  September 30, 2026, Application Insights stops routing the attribute values to the existing
+  tables for newly ingested data" [traces-sensitive], so the Phase 2 spike looks for the twin's
+  content where that page says it now goes.
 - **Retention.** The workspace keeps its defaults: "By default, all tables in a Log Analytics
   workspace retain data for 30 days, except for log tables with 90-day default retention", and
   "Tables related to Application Insights resources also keep data for 90 days at no charge"
@@ -824,7 +884,9 @@ has not been measured.
   latency are already in the Foundry portal's Traces view, in Foundry's Agent Monitoring Dashboard
   (preview) and in Azure Monitor's Agents view (preview), all keyed on the GenAI attributes
   [agent-dashboard], [agents-view]. Insights in Foundry (preview), which groups recurring behaviour
-  from traces into findings, and continuous evaluation belong to Phase 6 [insights].
+  from traces into findings, and continuous evaluation belong to Phase 6 [insights]. The nightly
+  evaluation of the served version (section 5.8, D92) sends its result record to the same place
+  as the gate's, so the eval view shows both.
 
 ```mermaid
 flowchart LR
@@ -843,7 +905,8 @@ flowchart LR
 ### 5.7 Runtime guardrail
 
 A guardrail policy with prompt-attack detection is attached to the agent definition through
-`rai_config.rai_policy_name`, which "must be the full ARM resource ID" of the policy [guardrail].
+`rai_config.rai_policy_name`, which is set "to the full ARM resource ID of your guardrail's RAI
+policy" [guardrail].
 A prompt that violates it is rejected "before the agent runs" with HTTP 400 and a `content_filter`
 error [guardrail].
 
@@ -864,6 +927,32 @@ Data Agent, Bing Grounding, Bing Custom Search, and Browser Automation" [interve
 for a container's own tools, so this is a platform limit rather than a scope cut; a labelled
 attack set with block and false-positive rates, which D46 did not adopt. The FAQ content is seeded
 by the platform, so wider indirect injection remains a recorded gap.
+
+**The output filter (D91).** Two filters act on output. The agent's policy screens the agent's
+response as well as its prompt: on the Responses protocol "the platform knows the request and
+response shapes" [guardrail]. And every model call the graph makes goes through the gateway to a
+model deployment, whose own guardrail screens the completion. The second is the one this design
+claims and shows refusing, because its refusal can be made certain. One policy on the two model
+deployments carries a custom blocklist for completions, a `customBlocklists` entry whose source
+is `Completion` [bicep-rai], holding one planted term. A test through the gateway asks the
+answering model to repeat the term and expects the completion to be cut with the finish reason
+`content_filter`: "the completion only cuts off when the blocklist content is matched"
+[blocklist]. The test calls as a test identity of its own, which holds an agent row and nothing
+else (section 4, D96). It runs in the candidate job and not nightly, because the model
+deployments and their policy survive the nightly teardown (D37). What the graph does with a cut
+completion is fixed and unit-tested: the node hands `refuse` a reason, and the customer gets a
+fixed reply with no partial text and no citation. A model call that is refused outright with
+`content_filter` is treated the same way.
+
+The claim is narrow: the filter is attached and it acts. It is not that every harmful answer is
+caught; safety evaluators remain a Phase 2 decision (D63). "Blocklist support is limited to Azure
+OpenAI models" [blocklist], which the two chosen models are. No blocklist is claimed on the
+agent's own policy, because the page for hosted agent guardrails does not mention blocklists
+[guardrail]. "New blocklist terms can take up to 5 minutes to propagate" [blocklist], so after a
+full rebuild `up` waits before this test can pass. The personal-data filter was considered and
+is not used. It is in preview [guardrail-overview], and its blocking mode "blocks the entire
+output if personal data is detected" [pii-filter], which would refuse a confirmation that shows
+the customer their own booking. Masking of personal data belongs to Phase 5.
 
 Two more facts shape the design. "The agentic guardrail fully overrides the model's guardrail"
 [guardrail-overview], so the model deployment's own filter is not a second layer on the agent
@@ -890,17 +979,26 @@ the same target is documented for hosted agents, with `version` optional [eval-t
 therefore runs the Action and a direct call to that API side by side, and the gate step reads
 whichever yields a machine-readable result (D56).
 
+A third route has appeared since this spec was accepted, an evaluation command in the Azure
+Developer CLI, of which Microsoft says "The Azure Developer CLI evaluation experience is currently
+in preview" [eval-hosted-quickstart]. Spike S6 records it and tries it only if both routes fail.
+
 - **Dataset.** `evals/salon-seed.json`: 50 FAQ questions, 50 out-of-scope requests and 10
   unanswerable questions, which should get "I do not know" (D46, D57). The owner signs the
   expected outcome of every row; the agent drafts; the dataset's hash goes into the release record
-  so two runs are compared only on the same rows (D57, D67). Dates are relative to the run date.
+  so two runs are compared only on the same rows (D57, D67). Dates are relative to the run date. A
+  changed file is a new signed version with a new hash, and the copy the gate uploads to the
+  project takes the hash as its version, since there "Datasets support versioning and reuse
+  across multiple evaluation runs" [eval-datasets] (D93).
   Injection attempts are not in this set: the guardrail rejects them "before the agent runs"
   [guardrail], and the negative test in section 5.7 covers them. The platform can generate
   synthetic queries for an agent [foundry-mcp-tools], which may shorten the authoring.
 - **Evaluators.** Task adherence, intent resolution, and groundedness for FAQ answers
   [agent-evals]. Task adherence and intent resolution are marked preview [agent-evals]. Tool call
   accuracy is not used on the single-turn rows: the graph's code makes the tool calls, so there is
-  nothing for it to judge there.
+  nothing for it to judge there. Microsoft now advises: "Use rubric evaluators as your primary
+  measure of agent quality" [rubric]. They are not used in Phase 1, where the deterministic
+  checks of D76 carry the exact criteria; they are a candidate for Phase 2.
 - **Safety.** Risk and safety evaluators are not offered in UK South [eval-regions], and neither
   is the AI Red Teaming Agent [red-team]. Safety in the gate rests on the guardrail's negative test
   and the poisoned-passage test; a second Foundry project in an EU region for safety evaluators
@@ -940,11 +1038,58 @@ smallest regression the gate detects. The day of those runs uses the
 about 8 points is the best the judged rows can resolve; with the 20 rows of the previous draft it
 was about 13. Until the measured figures are in, the claim is limited to gross failures.
 
+**The judge is checked by a person, and the thresholds are kept current (D93).** On the baseline
+day the owner reads the judge's verdict and reason on 20 rows and records the agreement beside the
+thresholds. If the owner disagrees on more than two, the thresholds are not fixed until the row or
+the evaluator has been looked at. Microsoft gives the advice for its rubric evaluators: "Run a
+small evaluation on a sample dataset to validate that the rubric scores align with your own
+judgment before using it at scale" [rubric]. Candidate and served are always judged on the same
+rows in one gate run. The absolute thresholds are measured again, by the five runs of D76 on a day
+with the raised quota of D85, when more than ten rows of a judged intent have been added or changed
+since the last baseline, or when the judge or a model has changed. Ten is a starting figure, and
+the rule is applied by hand when a pull request changes the set.
+
 **A quota refusal is an error, not a regression (D53).** A run that meets a 429 or 403 from the
 gateway, on any of its three routes, stops as failed-to-run and says so.
 
 **The bootstrap release (D38).** On a clean clone there is no served version, so the first run has
 no baseline. It is judged on the absolute thresholds only and recorded as the bootstrap release.
+
+**The nightly evaluation of the served version (D92).** After release, Microsoft's guidance lists
+"Scheduled quality and safety evaluation using test datasets to detect system drift"
+[observability]. It needs no message content: an agent-target run will "Send test queries to
+deployed models, prompt agents, or hosted agents and evaluate the responses generated at run time"
+[eval-targets], so D46 stands. Once on each night the gateway exists, the nightly workflow runs
+the judged harness against the served version on 20 rows of the signed set, drawn afresh each
+night with the date as the seed: eight FAQ rows, eight out-of-scope rows and four unanswerable
+rows. It runs in the workflow's `dev` job under the pipeline identity, which already creates the
+gate's evaluation runs. Its result record uses the gate result's schema, marked as a nightly run,
+and goes where the gate's records go.
+
+The run fails, and GitHub tells the owner, in two cases only. One is a structural fault in a
+sampled row: a citation that was not returned, or a tool call the row does not allow. A sound
+version cannot produce either, whatever the model says. The other is a pass rate, judged or of the
+expected intent, below its floor. `maf gate baseline` writes a floor for each rate beside the
+gate's thresholds: the pass count that a version performing at the baseline's measured rate would
+fall below on no more than one night in a hundred, for the number of rows the sample gives that
+rate. Twenty rows are noisy, so the floors sit well below the gate's thresholds. The run therefore
+shows gross drift within a day and nothing subtler, and the gate still judges the full set on
+every candidate. Until the baseline runs exist the run reports and does not fail. A quota refusal
+is reported as failed-to-run, as in the gate (D53), and the nightly delete runs whatever the
+result (D74).
+
+The sample is small because the run shares the agent's daily quota of 150,000 tokens with the
+day's other traffic, and one gate run alone is estimated at about 161,000 (section 8, D39). The
+run uses the gate's code and the project evaluation API, not Foundry's own scheduler: "Recurring
+evaluations (preview)" [agent-dashboard] are in preview, and the quality run in Microsoft's
+scheduled sample scores a column of recorded responses [eval-sched-sample]. Like every evaluation
+run it reaches the agent without crossing the gateway's agent route, the stated exception of D80.
+
+Continuous evaluation of live traffic is a different thing and stays in Phase 6. Microsoft's
+pages do not say how a continuous rule reads a hosted agent, and its tools page pairs "evaluation
+rules for prompt agents, or scheduled evaluation runs for hosted agents" [foundry-mcp-tools].
+Evaluation of live traffic from traces needs message content, which D46 keeps out of the traces:
+"Quality evaluators read the query and response from each trace" [eval-trouble].
 
 **Deterministic rules.** Tenant override, the two-tenant boundary, booking validation, the
 double-booking race, idempotency, citation checking and confirmation before writes are ordinary
@@ -1022,6 +1167,9 @@ flowchart TB
    published immutable release" [gh-immutable]. That is why the evidence is an asset and not the
    notes. "Creating an immutable release automatically generates a release attestation"
    [gh-immutable], which `gh release verify` checks [gh-release-verify].
+   The release record and the gate result are Pydantic models (D90). Their JSON Schemas are
+   exported and committed, since `model_json_schema` "returns a jsonable dict of a model's
+   schema" [pydantic-schema], and each record names the schema version it was written with.
 6. **Rollback.** Move the selector back to the recorded previous version. Versions survive the
    nightly teardown (D37). After a full rebuild there are none to go back to, which is the case
    D38 covers: `up` restores the approved image (section 5.10). Rollback is drilled once in Phase 1
@@ -1043,6 +1191,11 @@ Controls around the gate (D42):
 - **Sessions do not approve (D41).** A token with the `repo` scope can approve a pending
   deployment [gh-review], and sessions use the owner's login. The rule that a session never
   approves or rejects a deployment is written in CLAUDE.md and is not enforced.
+- **Contract snapshots (D90).** Three things are exported from the code, committed, and compared
+  on every pull request, where a difference fails the check: the compiled graph's rendering
+  (D69), the four tool schemas as salon-mcp lists them, and the JSON Schemas of the release
+  record and the gate result. A changed contract is therefore seen in review, beside its
+  snapshot, before anything is deployed.
 
 The owner is both author and approver. GitHub's prevent self-review setting exists so that
 deployments "are always reviewed by more than one person" [gh-env], and with one account it cannot
@@ -1054,9 +1207,12 @@ scoped to the two environments, so a workflow from a fork or outside those envir
 no token. Subscription and tenant identifiers are GitHub variables, not files (D18).
 
 Limitation: salon-mcp is deployed in the candidate step and is shared by the served agent, so a
-tool change reaches the served version before promotion. Tool schemas are pinned in the eval
-dataset to catch drift. Holding a new salon-mcp revision back until promotion was proposed by the
-council and not adopted (D42); it stays in Phase 2.
+tool change reaches the served version before promotion. Two things watch for that. The tool
+schemas are a committed snapshot, compared on every pull request, so a changed tool contract is
+seen in review (D90); an earlier wording, that the schemas were pinned in the eval dataset, named
+nothing that was built. And the nightly evaluation shows whether the served version still passes
+on the tools it now has (D92). Holding a new salon-mcp revision back until promotion was proposed
+by the council and not adopted (D42); it stays in Phase 2.
 
 **Traffic splitting.** Two pages say "Traffic splitting between versions isn't supported" [ha],
 [manage]; a newer preview page documents a 90/10 canary with two `FixedRatio` rules through
@@ -1082,14 +1238,17 @@ candidate to nobody until promotion; a canary is a Phase 2 option.
   - Either way it waits for role assignments to take effect before reporting ready.
 - **`down`.** By default it deletes the gateway, and the Basic search service if spike S4 fell
   back to it; a soft-deleted gateway bills nothing and keeps its name for 48 hours unless purged
-  [apim-softdel], and `up` purges it before recreating it (D74).
+  [apim-softdel], and `up` purges it before recreating it (D74). The default `down` is also the
+  named way to stop the agent in a hurry, within the limits section 5.11 states (D93).
 - **`down`, full.** A separate, explicit form removes role assignments that point at persistent
   resources, deletes the environment group, then purges the soft-deleted gateway and Foundry
   resources. The purge of a Foundry resource needs Contributor at subscription level [purge]. It
   is used for spike S5 and the stranger test.
 - **Nightly workflow.** Runs the served-image, registry and reconciliation checks first, while the
   gateway still exists (D71, D74), then the default `down` with the teardown identity, which runs
-  whether or not a check failed (D86), and checks that no gateway remains. It is scheduled at 18:30 on weekdays and at 22:00 every day, so a
+  whether or not a check failed (D86), and checks that no gateway remains. Before the delete, a job of
+  its own in the `dev` environment runs the guardrail negative test (section 5.7, D86) and, once a
+  day, the evaluation of the served version on its 20-row sample (section 5.8, D92). It is scheduled at 18:30 on weekdays and at 22:00 every day, so a
   gateway brought up at 09:00 costs about nine hours, not thirteen (D74). A forgotten gateway
   costs at most one day of its hourly price. A failed run fails the workflow, which GitHub reports
   to the owner.
@@ -1140,11 +1299,83 @@ demonstration script.
 within 60 minutes including the gateway's provisioning time. The stranger test in 9.2 records the
 time.
 
-**The AgentOps loop.** From a bad trace to a failing test in one working day: the trace is found in
-Application Insights, its conversation becomes an eval row, the row is added to the dataset by
-pull request and signed, and the candidate fails the gate. The platform can build the row from
-the trace [traces-dataset]. This is the loop the playbook's Maintain stage describes, done by hand
-in Phase 1.
+**The AgentOps loop (D93).** From a bad trace to a failing test in one working day. This is the
+loop the playbook's Maintain stage describes, done by hand in Phase 1.
+
+- **What a trace gives.** The failing turn is found by its trace in Application Insights. The
+  trace names the conversation, the turn and the node, and holds no message content (section 5.6,
+  D46). So a trace cannot supply an eval row, and neither can Foundry's job that turns traces into
+  a dataset, whose rows hold "the description, query, and response for each" [traces-dataset].
+  What that job returns for traces without content is not stated (section 2.5).
+- **Where the words come from.** Every Phase 1 caller is a test identity, the pipeline or the
+  owner (D33), so the words are the sender's own: a feature file, an eval row or the owner's own
+  call. Every scripted test and every evaluation run records the conversation ids it used, so a
+  trace leads back to its words. The agent drafts the row from them and the owner signs it (D67).
+- **How the set changes.** The row is added by pull request. A changed file is a new version with
+  a new hash, the next release record carries the hash (D57), and the candidate fails the gate on
+  the new row until the fault is fixed. Rows about injection go to the guardrail tests, not to
+  the judged set (D76).
+- **What opens the loop.** The control bands of the intent's section 10 are these signals: a
+  failed nightly check (the guardrail test, the registry check, the reconciliation, the
+  served-image check, the token figure, the evaluation of the served version), a failed gate on
+  `main`, a budget alert, and a Defender alert while the trial of D66 runs. The owner triages
+  each. One that needs a change of behaviour becomes a new intent revision; one that needs a fix
+  becomes a failing test first.
+- **How the agent is stopped.** Microsoft's guidance is to "Decide in advance how to quickly
+  disable an agent if it malfunctions or causes harm" [caf-governance]. The default `down`
+  removes the gateway, and the agent as deployed can then call neither a model nor a tool,
+  because both of its routes point at the gateway; a session may run it without asking (D40).
+  This is the existing `down`, not a new control. Its limit: the agent's own endpoint still
+  answers a caller that holds the role, and salon-mcp still accepts the agent's token at its own
+  address (D71, D80), so it stops a faulty agent, not a misused identity. A bad version is rolled
+  back by moving the selector (section 5.9). A stop for one agent among several is a Phase 2 item.
+- **Later.** The loop's drill runs in Phase 2 on the eval twin (D77), where content is recorded
+  and Foundry's job can draft the row with redaction left on, its default: "By default, the
+  service redacts private content from traces" [traces-dataset]. User feedback joins the sources
+  in Phase 5.
+
+### 5.12 AgentOps practice by phase
+
+One table for every practice (D95): the phase that builds it, where this spec designs it, and the
+platform feature it leans on with that feature's status on 2026-10-10. The intent and the plan
+point here and do not repeat it. A practice marked "beyond the stop line" belongs to Phase 5 or 6,
+and the project counts as complete without it (D30).
+
+| Practice | Built in | Where | Platform feature, and its status |
+|---|---|---|---|
+| Offline eval gate: judged harness, deterministic checks, thresholds from five baseline runs | Phase 0 (spike S6), Phase 1 | 5.8, 5.11, 6.2 | The project evaluation API; the ai-agent-evals Action, preview [eval-action]; task adherence and intent resolution, preview [agent-evals] |
+| Scripted write tests | Phase 1 | 5.8, 9.2 | None |
+| Scheduled evaluation of the served version | Phase 1 (D92) | 5.8, 5.10 | The same API, called by the nightly workflow. Foundry's "Recurring evaluations (preview)" are not used [agent-dashboard] |
+| Trace evaluation of the write intents | Phase 2 (D77) | 5.8 | Needs message content: "Quality evaluators read the query and response from each trace" [eval-trouble] |
+| Continuous evaluation of live traffic; Insights | Phase 6, beyond the stop line | 5.6, 5.8 | Preview [agent-dashboard], [insights]; evaluation from traces needs message content |
+| Golden dataset: signed, versioned, hashed | Phase 0 (the seed), Phase 1 | 5.8, 5.11 | Versioned datasets in the project [eval-datasets] |
+| Growth of the dataset | Phase 1 by hand (D93); the drill in Phase 2 | 5.11 | Foundry's job that builds a dataset from traces, Phase 2 [traces-dataset] |
+| Typed contracts: model outputs, the answer, tool inputs and results, rows, the two evidence records | Phase 1 (D90) | 5.1, 5.2, 5.3, 5.9 | Structured outputs [structured-outputs]; Pydantic 2 |
+| Input guard: prompt-injection screening, shown refusing | Phase 1 | 5.7 | "Agent guardrails are in preview" [guardrail-overview] |
+| Input guard: validation in code; no tool accepts a tenant_id | Phase 1 | 4, 5.1, 5.2 | None |
+| Injection through retrieved content | Phase 1 | 5.7 | None: the answering node has no tools, and one test keeps that true |
+| Output guard: the citation check | Phase 1 | 5.1 | None |
+| Output guard: the content filter, shown refusing | Phase 1 (D91, D96) | 5.7 | A custom blocklist on the model deployments' guardrail [blocklist] |
+| Personal data in responses and in chat history | Phase 5, beyond the stop line | 5.7 | The personal-data filter is in preview [guardrail-overview] and is not used |
+| Tracing and attribution | Phase 1 | 5.6 | "Tracing is generally available for prompt and hosted agents" [trace-concept]; the GenAI conventions are still marked "Development" [semconv-agent] |
+| Cost and token budgets | Phase 0 (the budget), Phase 1 | 5.4, 8 | API Management policies, generally available (section 7) |
+| Versioning: image digest, agent version, pinned models, dataset hash, contract snapshots | Phase 1 | 3.4, 5.1, 5.9 | Immutable agent versions [ha] |
+| Approval | Phase 0, Phase 1 | 5.9 | GitHub environments [gh-env] |
+| Rollback, and the stop | Phase 1 | 5.9, 5.10, 5.11 | The version selector [manage] |
+| Canary and A/B release | Not built; a Phase 2 option | 5.9 | See the traffic splitting note in 5.9 |
+| Drift in configuration | Phase 1 | 5.9, 5.10 | None: the served-image check, the registry check and the contract snapshots |
+| Drift in quality | Phase 1 for gross drift (D92); finer detection in Phase 6, beyond the stop line | 5.8 | As for the scheduled and the continuous evaluation above |
+| Safety evaluators and red teaming | Phase 2, to be decided (D63) | 5.8 | Not offered in UK South [eval-regions], [red-team] |
+| Human in the loop: confirmation before a write; approval of a release | Phase 1 | 5.1, 5.9 | The interrupt surfaces as an approval request [lg-hosted] |
+| Human evaluation: outcomes signed by the owner; the judge checked by the owner | Phase 0, Phase 1 (D67, D93) | 5.8, 5.11 | Foundry's human evaluation is in preview and is not used [human-eval] |
+| Alerts | Phase 0 (the budget), Phase 1 (failed nightly runs, the token figure) | 5.4, 5.10, 5.11 | Foundry's "Alerts (preview)" on evaluation scores are not used [agent-dashboard] |
+| The maintain loop | Phase 1, by hand | 5.11 | None |
+| User feedback | Phase 5, beyond the stop line | None | An OpenTelemetry event that carries scores and ids, in preview [feedback] |
+| SLOs and error budgets | Phase 6, beyond the stop line | None | None |
+
+Beyond the stop line, then: continuous evaluation of live traffic, finer drift detection, SLOs,
+masking of personal data and user feedback. Inside it but not in Phases 0 and 1: trace evaluation
+of the write intents, the loop's drill, safety evaluators and red teaming, all in Phase 2.
 
 ## 6. Phase 0
 
@@ -1152,7 +1383,7 @@ in Phase 1.
 
 | Deliverable | Acceptance check |
 |---|---|
-| Bootstrap: persistent group; pipeline, teardown and workload identities, the gateway's identity (D73) and the four test identities (D82, D84); federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
+| Bootstrap: persistent group; pipeline, teardown and workload identities, the gateway's identity (D73) and the five test identities (D82, D84, D96); federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
 | IaC skeleton: environment Bicep, tenant module in its Bicep and script parts, `up`, both forms of `down`, nightly teardown | Spike S5 passes |
 | CI with OIDC: pull request checks and the release workflow skeleton, every Action pinned by full SHA, read-only default token, image attestation (D62) | A no-op change travels from pull request to promotion, with approval, and its attestation verifies |
 | Mutation testing and a complexity-and-coverage report on the control modules (D68) | A mutated control module fails the pull request check |
@@ -1324,6 +1555,11 @@ agent, and can it be mapped to a tenant?
 | Admin-connected model as the eval judge (D75) | Preview: "might not be available in all regions" [eval-admin-models] | Connection name and deployment pinned | A judge deployment on resource A for the gate run, with the window recorded |
 | API Management in front of the hosted agent endpoint (D80) | No page was found that describes it: Microsoft documents its gateway as a proxy for agents that run outside Foundry [custom-agent]. The route is an ordinary HTTP API, and `validate-azure-ad-token` applies to all tiers [apim-validate] | Policies in the repository | Callers reach the Foundry endpoint directly, as before D80; the agent path becomes a Phase 2 item |
 | LangGraph | 1.2.12; the official sample pins 1.2.11 [sample-hitl] | Exact version | None |
+| Pydantic (D90) | 2.14.0, a released package [pypi-pydantic]; already in the dependency tree of the pinned libraries | Exact version, in the plan | None needed |
+| Custom blocklist on the model deployments' guardrail (D91) | The page carries no preview label; "Blocklist support is limited to Azure OpenAI models" [blocklist] | Blocklist and policy in IaC | The test is dropped and the filter is recorded as present but not shown |
+| Foundry's recurring evaluations, scheduled and continuous (not used, D92) | "Recurring evaluations (preview)" [agent-dashboard] | None | The nightly workflow calls the project evaluation API itself |
+| Foundry's job that builds a dataset from traces (Phase 2, D93) | The page carries no preview label; it needs `azure-ai-projects` 2.8.0 or later [traces-dataset] | None in Phase 1 | Rows drafted by hand |
+| Application Insights' own table for recorded message content (Phase 2, D93) | The page is marked preview [traces-sensitive] | None in Phase 1 | The eval twin's content is read wherever the Phase 2 spike finds it |
 
 Generally available and not in doubt: hosted agents, API Management v2 policies, Table Storage,
 Container Apps, AI Search, GitHub environments, Entra Agent ID [agent-id-ga], immutable releases
@@ -1393,6 +1629,13 @@ two gate runs do not fit in a day the owner chooses the quota again with the mea
 - If S3 falls back to Cosmos DB serverless, add pence.
 - Spike S1 now builds one gateway, not two, so the draft's one-off £5.60 does not arise.
 - The S6 spike day runs with a 3,000,000-token quota: £3.40 at the gpt-5.4-mini mix, once (D76).
+- The nightly evaluation of the served version judges 20 rows of one version. One gate run,
+  estimated above at about 161,000 tokens, judges 110 rows of two versions and runs the scripted
+  tests, so by row count the nightly run is under a tenth of it: roughly 15,000 tokens, under
+  £0.02 at the gpt-5.4-mini mix, and under £0.40 over 21 working days (D92). This is an estimate
+  built on an estimate; the baseline day measures it.
+- A spike image built in the registry costs £0.0001 for each vCPU second of the build [prices],
+  pence an image (D89).
 - The tool path through the gateway adds no item: the MCP server entity, its policies and its
   metrics bill nothing beyond the hours the gateway exists (D71). Standard v2, the Phase 2 lock, is
   £0.7237 an hour [prices], £97.70 at 135 hours, which is why the lock is a budget decision.
@@ -1457,8 +1700,11 @@ council has reviewed the change.
 | Agent path through the gateway (D80), if spike S1 kept it | A call through the gateway's agent route is served, rate-limited and metered by tenant and agent, and Foundry authorises the caller again | A caller with no caller row for the agent: 403 at the gateway. Over the caller rate: 429. Where S1 found a join key, a call at the agent's own address is reported by the reconciliation check | Metrics, refused requests and a check run |
 | Attribution | A trace shows all nine keys on every span the agent emits, and salon-mcp spans join it on the trace id | A query for agent spans missing any key returns none | Saved query |
 | Grounded answers | An FAQ answer cites only ids that were returned | A question with no source gets "I do not know"; an answer citing an id that was not returned is refused | Unit test and eval results |
+| Typed contracts (D90) | A pull request that leaves the tool and record schemas as committed passes the check | A changed tool or record schema without its snapshot fails the check; model output that fails validation gets the fixed reply and no tool call | Check output and unit tests |
 | Guardrail | A normal prompt gets HTTP 200 | An attack prompt gets HTTP 400 `content_filter`; a poisoned passage leads to no tool call | Pipeline run and unit test |
+| Output filter (D91, D96) | An ordinary completion comes back whole | A completion that contains the planted term is cut with the finish reason `content_filter`, and the graph gives the fixed reply with no partial text | Pipeline run and unit test |
 | Eval gate | A sound candidate passes | A deliberately damaged candidate fails and cannot be promoted; a run that meets a quota refusal stops as an error, not a regression | Two pipeline runs |
+| Nightly evaluation of the served version (D92) | On a sound served version the sampled run passes and its result record appears in the Workbook | Run against a sample in which signed outcomes have been changed on purpose, it fails; the gateway is still deleted | Two workflow runs |
 | Write-path gate | The scripted approve, decline and tool-error conversations pass on a sound candidate | A candidate that writes without confirmation fails | Pipeline run |
 | Approval and promotion | An approved candidate becomes the served version | A rejected one leaves the served version unchanged | Release records |
 | Provenance | The served digest's attestation verifies against this repository | A digest without an attestation is not promoted | Verification output |
@@ -1478,12 +1724,13 @@ outside these criteria (D32).
 |---|---|---|
 | 0 | 1 | Bootstrap, IaC skeleton, CI with OIDC, repository protections, spikes S2 then S1 (tests 1 to 5), cost measurement |
 | 0 | 2, and two days (D81, D87) | Test 6 of spike S1 in its own time, spikes S3 to S6, hooks, skills, REVIEW.md, seed eval set, ADRs, spec update, council gate |
-| 1 | 1 | salon-mcp, data model, tenant module, agent graph running locally with tests, including the two-tenant test, the architecture contracts and the mutation check |
-| 1 | 2 | Hosted agent, gateway policies for the model and tool paths (D71) and the agent path (D80), telemetry and attribution, guardrail, the Defender trial (D66) |
-| 1 | 3, and three days (D87) | Eval gate and scripted write tests, release pipeline with attestation, rollback drill, Workbook, exit demonstrations, council gate |
+| 1 | 1 | salon-mcp, data model, tenant module, agent graph running locally with tests, including the two-tenant test, the architecture contracts and the mutation check; the typed contracts and their snapshots (D90) |
+| 1 | 2 | Hosted agent, gateway policies for the model and tool paths (D71) and the agent path (D80), telemetry and attribution, guardrail, the output filter's test (D91), the Defender trial (D66) |
+| 1 | 3, and four days (D87, D94) | Eval gate and scripted write tests, release pipeline with attestation, rollback drill, Workbook, the nightly evaluation of the served version (D92), exit demonstrations, council gate |
 
-Phase 0 is 12 working days and Phase 1 is 18 (D87, which amended D81 after principal review 06
-found the estimates too low). The agent route is estimated at two and a quarter days, three
+Phase 0 is 12 working days and Phase 1 is 19 (D94). D87 had set Phase 1 at 18, amending D81 after
+principal review 06 found the estimates too low; D94 added a day for the typed contracts (half a
+day), the output filter's test and the nightly evaluation (a quarter each). The agent route is estimated at two and a quarter days, three
 quarters of a day in Phase 0 and a day and a half in Phase 1. Both boxes are filled exactly.
 The implementation plan gives the days step by step.
 
@@ -1505,10 +1752,15 @@ Phase 1:
 1. The Langfuse exporter, which is already outside the exit criteria.
 2. The gateway's agent route (D80): callers go back to the Foundry endpoint and the route becomes
    a Phase 2 item.
-3. Workbook reduced to tokens and latency only.
-4. The second model role; one model for every node.
-5. The cost-per-conversation and latency conditions in the eval gate.
-6. Stylist choice; "any available" only.
+3. The nightly evaluation of the served version (D92), which becomes a Phase 2 item (D94).
+4. The output filter's test (D91). The filter stays and is recorded as present but not shown (D94).
+5. Workbook reduced to tokens and latency only.
+6. The second model role; one model for every node.
+7. The cost-per-conversation and latency conditions in the eval gate.
+8. Stylist choice; "any available" only.
+
+The typed contracts (D90) are not in the order: they are how the code is written, not a separable
+deliverable (D94).
 
 Never cut in Phase 1, because they are the story: tenant from identity, confirmation before writes,
 the gateway negative test, the eval gate with its write-path tests, the approval gate, the audit
@@ -1568,7 +1820,13 @@ Design risks:
 | Role assignments lag after a rebuild | Workload identity kept in the persistent group; `up` waits before reporting ready |
 | One salon-mcp identity can read every tenant's data | Boundary enforced in code, with a local two-tenant test; tests on real infrastructure arrive in Phase 2 |
 | Indirect prompt injection through retrieved content | One poisoned-passage test; wider coverage is a recorded gap |
-| Tool and policy changes reach the served agent before promotion | Tool schemas pinned in the eval set; separate revisions in Phase 2 |
+| Tool and policy changes reach the served agent before promotion | The tool schemas are a committed snapshot compared on every pull request (D90); the nightly evaluation of the served version (D92); separate revisions in Phase 2 |
+| Model output does not fit its schema | Structured outputs, validation in code, and a fixed reply with no tool call (D90) |
+| The nightly evaluation judges 20 rows | It claims gross drift only; the gate judges the full set on every candidate (D92) |
+| The nightly evaluation raises false alarms | It fails only on a structural fault or below a floor set for about one false alarm in a hundred nights, and reports only until the baseline exists (D92) |
+| The output filter is shown refusing one planted term | The claim is that the filter is attached and acts; safety evaluators are a Phase 2 decision (D63, D91) |
+| One more identity can reach the model route (D96) | It holds an agent row with a quota of 5,000 tokens and nothing else: no role and no caller row |
+| The eval set grows from the sender's own words | True only while every caller is a test identity, the pipeline or the owner (D33); the Phase 2 eval twin is the route after that (D93) |
 | Six spikes overrun | Fixed time-boxes with fallbacks; a Phase 0 cut order (D48) |
 
 **Regulated-industry requirements, and where the design meets them.** Recorded at the owner's
@@ -1609,7 +1867,8 @@ For the implementation plan:
 
 ## 13. References
 
-All opened on 2026-10-03; the rows added for D71 to D88 were opened on 2026-10-04.
+All opened on 2026-10-03; the rows added for D71 to D88 were opened on 2026-10-04, and the rows
+added for D89 to D96 on 2026-10-10.
 
 | Key | Source |
 |---|---|
@@ -1740,3 +1999,23 @@ All opened on 2026-10-03; the rows added for D71 to D88 were opened on 2026-10-0
 | [gh-sha-policy] | https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository |
 | [foundry-skill] | https://learn.microsoft.com/azure/foundry/how-to/develop/use-microsoft-foundry-skill |
 | [azure-mcp-readme] | https://github.com/microsoft/mcp/blob/main/servers/Azure.Mcp.Server/README.md |
+| [structured-outputs] | https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs |
+| [models] | https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure |
+| [lg-state] | https://docs.langchain.com/oss/python/langgraph/use-graph-api |
+| [fastmcp-docs] | https://gofastmcp.com/llms-full.txt |
+| [pydantic-schema] | https://docs.pydantic.dev/latest/concepts/json_schema/ |
+| [pypi-pydantic] | https://pypi.org/pypi/pydantic/json |
+| [blocklist] | https://learn.microsoft.com/azure/foundry/openai/how-to/use-blocklists |
+| [bicep-rai] | https://learn.microsoft.com/en-us/azure/templates/microsoft.cognitiveservices/accounts/raipolicies |
+| [pii-filter] | https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-personal-information |
+| [observability] | https://learn.microsoft.com/azure/foundry/concepts/observability |
+| [eval-trouble] | https://learn.microsoft.com/azure/foundry/observability/how-to/troubleshooting |
+| [eval-sched-sample] | https://raw.githubusercontent.com/Azure/azure-sdk-for-python/main/sdk/ai/azure-ai-projects/samples/evaluations/sample_scheduled_evaluations.py |
+| [eval-hosted-quickstart] | https://learn.microsoft.com/azure/foundry/observability/quickstarts/quickstart-evaluate-hosted-agent |
+| [rubric] | https://learn.microsoft.com/azure/foundry/concepts/evaluation-evaluators/rubric-evaluators |
+| [caf-governance] | https://learn.microsoft.com/azure/cloud-adoption-framework/ai-agents/governance-security-across-organization |
+| [traces-sensitive] | https://learn.microsoft.com/azure/foundry/observability/how-to/traces-sensitive-content |
+| [trace-concept] | https://learn.microsoft.com/azure/foundry/observability/concepts/trace-agent-concept |
+| [trace-framework] | https://learn.microsoft.com/azure/foundry/observability/how-to/trace-agent-framework |
+| [human-eval] | https://learn.microsoft.com/azure/foundry/observability/how-to/human-evaluation |
+| [feedback] | https://learn.microsoft.com/azure/foundry/observability/how-to/log-end-user-feedback |
