@@ -87,7 +87,27 @@ The reviewer was given the five decisions and not the reasoning. It confirmed al
 
 Two things in this table go beyond what the owner was asked: the pipeline identity's second role, and the added clause in the served-image check. Both are put to the owner in the session's summary.
 
-## 6. Sources opened in this session
+## 6. Independent read of the spec at commit 1d35fb8
+
+The reviewer was given the decisions and not the reasoning. It found every new quotation exact, the role set sufficient for each of the five uses it was asked to trace, and no diagram label made untrue. It reported four must-level defects and six should-level ones, all in or caused by the new text. All were accepted, and two of them reached back into the intent.
+
+| Finding | What was done |
+|---|---|
+| M1. Exit row 9.1 still said that each no-go has taken its fallback | Each miss has the owner's recorded choice: the named fallback, or another session |
+| M2. "No session touches the persistent group, with one exception" dropped the qualifier that the intent carries | Without the owner's yes no session touches it. `up` waits for the owner's yes, and the spec says what `up` writes there when a session runs it |
+| M3. `up` was to read "the current token quota" and pass it back, but the quota is on the registry's rows and in the gateway's own parameter, neither of which is in the template; and nothing said what image salon-mcp gets when there is no app | `up` passes back one value, salon-mcp's image: the image the app is running; on a full rebuild, the image the candidate job tagged with the commit of the latest release record; with no record, a placeholder. The quota is not in the template. The intent's D101 was corrected to match |
+| M4. The served-image check was to fail on a `scratch/` image "once a release exists". A release record exists from Phase 0, before the pipeline first builds salon-mcp, and the check runs at the start of every pipeline run, so it would have failed the very run that replaces the image | The clause is withdrawn. The guard sits in the candidate job, which deploys salon-mcp from its release repository on every run and confirms that the app runs the image it pushed. Nothing checks it between runs, and the spec says so. The intent's D98 was corrected to match. This removes the addition the session had made in section 5 above |
+| S5. Who assigns each role; the condition's two write actions; exact role names; that nobody holds a role that deletes an image | All stated in section 4 and 3.2 |
+| S6. The gateway is not part of the template that `up` re-applies; and who applies a merged change before the pipeline tests it | Both stated: the change is applied from its pull request's branch as that step's proof, and the candidate job's what-if on `main` then shows no difference |
+| S7. Five places still read as automatic fallbacks | Each restated: on a miss the owner chooses |
+| S8. The pins and two other changes rest on no decision | One row in section 2.9 names them as the currency audit and corrections of fact. The rule that the graph opens its tool session for each turn moved from a table cell to section 5.2 |
+| S9. The bootstrap was "created once" and yet to be run again | It is safe to run again, and its acceptance check says a second run changes nothing |
+| S10. "The registry" used for the container registry in six places | "Container registry" throughout the new text and the cost table |
+| Could-level: a throwaway name for the refused build; the ARM-token policy; S5's times now include the template's apply; two unwrapped lines; "meets" | All corrected. One was left: the diagram of section 3.2 shows the project identity's image pull and not salon-mcp's, an omission older than this revision, which no new text makes untrue |
+
+The reviewer also noted that the workstation has no Docker, so `az acr login` there cannot store a credential, and the owner cannot pull or verify an image from it. The plan therefore places the attestation's verification in the promote job, on the runner, and the owner's reader role is for reading tags and manifests.
+
+## 7. Sources opened in this session
 
 Every quotation in this file was matched to its page by script on 2026-10-10.
 
