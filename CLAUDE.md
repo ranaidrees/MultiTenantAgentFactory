@@ -34,7 +34,7 @@ currency audit instead of a council rerun (D70), written to `docs/council/NN-<st
 - Independent read: a revised artefact is read by a reviewer briefed with the decision, not the
   reasoning, before the next artefact is derived from it.
 - Reuse before build: check official docs and samples first (Microsoft Learn MCP, Context7, web search).
-- Azure writes (intent D9, D13, D14, D20, D21, D40): before any command or MCP tool call that creates,
+- Azure writes (intent D9, D13, D14, D20, D21, D40, D98): before any command or MCP tool call that creates,
   changes or deletes Azure resources, state the estimated added monthly cost and the blast radius.
   Then:
   - Prod, through any tool: always wait for the owner's yes.
@@ -43,7 +43,9 @@ currency audit instead of a council rerun (D70), written to `docs/council/NN-<st
     month's forecast for dev stays under £40; touches only this project's resource groups; deletes
     nothing; no role, policy or Entra change outside the bootstrap. Otherwise wait for the owner's
     yes. One exception (D40): the repository's gateway teardown may run without asking. A full
-    `down` waits for the owner's yes, and nothing touches the persistent group.
+    `down` waits for the owner's yes. A second (D98): `az acr build` into the registry's `scratch/`
+    repositories may run without asking, and is the one thing a session does in the persistent
+    group without the owner's yes.
   These are written rules with no hook behind them (D20). Releases still go through GitHub Actions.
 - Approvals (D41): never approve or reject a GitHub deployment. The owner approves in the browser.
 - No clutter: add a document only if it is a chain artifact, a council review, a journal entry,
@@ -54,7 +56,7 @@ currency audit instead of a council rerun (D70), written to `docs/council/NN-<st
 
 ## Architecture
 
-Design: `docs/spec-phase-0-1.md`, sections 3 to 5, accepted 2026-10-04 and revised for D89 to D96.
+Design: `docs/spec-phase-0-1.md`, sections 3 to 5, accepted 2026-10-04 and revised for D89 to D101.
 In eight lines:
 1. Salon agent: LangGraph on a Foundry hosted agent, one Foundry project per tenant, in UK South;
    the graph is a plain package behind a thin hosting adapter. What the models return, the tools'

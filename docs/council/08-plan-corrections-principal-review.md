@@ -1,6 +1,6 @@
 # Principal engineer review: the corrections that finish the plan before Build
 
-Date: 2026-10-10. Artifacts reviewed: docs/intent.md revision 19, docs/spec-phase-0-1.md and docs/implementation-plan-phase-0-1.md at commit cc9637d, and then each document as it was revised for D97 to D101.
+Date: 2026-10-10 and 2026-10-11. Artifacts reviewed: docs/intent.md revision 19, docs/spec-phase-0-1.md and docs/implementation-plan-phase-0-1.md at commit cc9637d, and then each document as it was revised for D97 to D101.
 Method: one deep single-reviewer pass with a currency audit, not a council run (D70). It applies the findings that section 11 of docs/council/07-agentops-coverage-principal-review.md left open, and records the owner's decisions on them, D97 to D101 in docs/intent.md revision 20.
 Reviewer lens: can an engineer who has never seen the conversation build Phase 0 from the plan alone, with every claim about the platform checked against the page it rests on.
 Reads: CLAUDE.md; docs/journal/07-agentops-coverage-check.md, section 7; review 07, sections 10 and 11; the intent's section 14 from D89; the plan's sections 1 to 4, 9 and 11 and steps 0.4, 0.10, 1.1, 1.3, 1.7, 1.9 and 1.12; the spec's sections 2.5, 5.7, 5.8, 5.10 and 5.12.
@@ -85,7 +85,7 @@ The reviewer was given the five decisions and not the reasoning. It confirmed al
 | S10. "Three" collided with the spec, which already counts three fixed replies including the older one | Three new fixed texts, four in all with the reply of D46 |
 | Could-level: two decisions cited for things they do not say; D97 did not carry "in one go" or say that the items D81 moved stay moved; the flag was alluded to and not named; who deletes a `scratch/` image; what keeps salon-mcp off its `scratch/` image | All corrected. No session deletes a `scratch/` image. The served-image check also fails if salon-mcp is found running one once a release exists, which is a small addition to plan step 1.11 and is the session's own |
 
-Two things in this table go beyond what the owner was asked: the pipeline identity's second role, and the added clause in the served-image check. Both are put to the owner in the session's summary.
+Two things in this table went beyond what the owner was asked: the pipeline identity's second role, and the added clause in the served-image check. The second was withdrawn after the spec's read (section 6). The first is put to the owner in the session's summary.
 
 ## 6. Independent read of the spec at commit 1d35fb8
 
@@ -107,9 +107,47 @@ The reviewer was given the decisions and not the reasoning. It found every new q
 
 The reviewer also noted that the workstation has no Docker, so `az acr login` there cannot store a credential, and the owner cannot pull or verify an image from it. The plan therefore places the attestation's verification in the promote job, on the runner, and the owner's reader role is for reading tags and manifests.
 
-## 7. Sources opened in this session
+## 7. What the session found itself
 
-Every quotation in this file was matched to its page by script on 2026-10-10.
+Found while reading the plan for these corrections and while preparing step 0.2. Each is applied in the corrected plan.
+
+| Gap | What was done |
+|---|---|
+| The storage module closes an account's firewall unless told otherwise; its source calls this the "New default case that enables the firewall by default". salon-mcp, the pipeline and the nightly job reach both storage accounts over public endpoints, because Phase 1 has no private networking (D52), and would have been refused | `networkAcls` is set to allow on both accounts, with the roles as the control. The module's default redundancy, `Standard_GRS`, is replaced by `Standard_LRS`. The spec's risk row on public endpoints now names the storage accounts, the search service and the container registry |
+| Step 0.1's proof needs a fresh `ubuntu-latest` job, and no workflow existed until step 0.8 | `pr.yml` in its first form joins step 0.1 |
+| Step 0.2 did not say which role assignments of section 9.3 it makes | Those on persistent resources, the gateway identity's metrics role among them, which step 0.5 had held |
+| Container Apps needs an identity to pull salon-mcp's image with, and that identity needs a role on the registry | `id-maf-salon-mcp` gets the reader role, and the app's `registries` setting names it |
+| The budget module needs a contact | The subscription's Owner role, so that no address is in the repository (D18) |
+| The command line's library was unnamed | `argparse`, with no new dependency |
+| One quotation in step 0.16 left a word out of the page's sentence | Made exact: "Claude uses this to decide when to apply the skill" |
+| The workstation cannot verify an attestation, having no Docker for `az acr login` to store a credential in | The verification is the promote job's, on the runner |
+| The session's own citation script paired quotation marks wrongly after a short quotation, and took the text between two code spans for a code span | Both faults fixed, and every document checked again. The counts in this file are from the corrected script |
+
+## 8. What was done with each finding of review 07, section 11
+
+| Finding | What was done | Where in the plan |
+|---|---|---|
+| 1. Must. A night with no gateway would have ended failed-to-run | With no gateway, `maf check registry` and both steps of the `dev` job are skipped: each says so, exits zero and writes no record. That includes the 22:00 run on a day when the 18:30 run has already deleted the gateway | Steps 0.10 and 1.12 |
+| 2. Must. `az acr build` had no stated runner, wrote to the persistent group, and the registry's role mode was unstated | D98. A session runs the builds, into `scratch/` only. The mode is fixed. The bootstrap makes six role assignments on the registry and the tenant module one. `AcrPush` is replaced | Section 3; steps 0.2, 0.3 and 0.4; section 9.3 |
+| 3. Should. One job or three | Three: `checks`; `dev` after it, always, with a limit of 30 minutes; `delete` after both, always | Step 0.10 |
+| 4. Should. Structured outputs were to be settled in a step that cannot call the model route | D100. One strict-schema call to each deployment joins test 1 of spike S1 as a record, and step 1.3 starts from the answer | Steps 0.6 and 1.3 |
+| 5. Should. The gateway's copy was regenerated after steps 4, 8 and 9 only | After 4, 8, 9, 11 and 12 | Section 9.2 |
+| 6. Should. `records.py` was first listed in step 1.1 | It is in step 0.8's files. Step 0.15 adds the gate result and step 1.1 the registry rows | Steps 0.8, 0.15 and 1.1 |
+| 7. Should. The list of images built outside the pipeline was incomplete | One rule and one command in section 3, and every such image named: two in step 0.4, one each in 0.6 and 0.12, three in 0.15, and salon-mcp's in 1.1 | Section 3 |
+| 8. Should. The nightly evaluation ran "by the route step 1.9 uses" | Always by `maf gate run`'s own calls | Step 1.12 |
+| 9. Should. The order of the policy and the deployments, and what applies a changed module | Raw deployments from step 0.5, ordered with `dependsOn`. D101: `maf up` applies the environment's template on every run, and the plan says what it passes back | Steps 0.5, 0.10 and 1.7; section 9.1 |
+| 10. Should. Cut item 4 dropped two tests | The end-to-end test and its login only. The unit test stays | Section 11.2 |
+| 11. Should. The blocklist item was cited to the blocklist's page | A key of its own, and API version 2026-07-01 on both resources | Step 1.7; sections 9.1 and 13 |
+| 12. Could. Stale labels | D94 and D97 beside D87 in section 11's heading and risk rows; D96 in step 0.2 | Sections 10 and 11; step 0.2 |
+| 13. Could. The layout omitted files | `replies.py`, the two exporters and `tests/fixtures/` | Section 2 |
+| 14. Could. Two fixed replies or three | D101: three new fixed texts, four in all. The spec's section 12 is corrected | Spec section 12 |
+| 15. Could. Details an engineer would have had to invent | The comparer's one form; `extra='forbid'` with a unit test; the filter test's prompt, token limit and retry every 30 seconds; the manual trigger's two inputs; the order of the outcomes | Steps 1.1, 1.3, 1.7 and 1.12; section 9.6 |
+
+The third estimate, of about four days, is answered by D97: the day figures are sizes. Section 11.3 of the plan is new and says which Phase 0 steps wait for which, and which may run in parallel sessions.
+
+## 10. Sources opened in this session
+
+Every quotation in this file was matched to its page by script on 2026-10-11.
 
 - https://learn.microsoft.com/azure/container-registry/container-registry-rbac-abac-repository-permissions
 - https://learn.microsoft.com/azure/container-registry/container-registry-rbac-built-in-roles-directory-reference
@@ -129,3 +167,10 @@ Every quotation in this file was matched to its page by script on 2026-10-10.
 - https://github.com/PrefectHQ/fastmcp/releases/tag/v4.1.0
 - https://pypi.org/pypi/{name}/json, one call for each package named in plan section 3
 - https://mcr.microsoft.com/v2/bicep/avm/res/{module}/tags/list, one call for each module named in plan section 9.1
+- https://raw.githubusercontent.com/Azure/bicep-registry-modules/main/avm/res/storage/storage-account/main.bicep
+- https://raw.githubusercontent.com/Azure/bicep-registry-modules/main/avm/res/cognitive-services/account/main.bicep
+- https://learn.microsoft.com/azure/azure-resource-manager/bicep/resource-dependencies
+- https://learn.microsoft.com/azure/container-apps/get-started
+- https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+- https://docs.github.com/en/actions/reference/workflows-and-actions/expressions
+- https://code.claude.com/docs/en/skills
