@@ -9,7 +9,7 @@ How the pass was made. The session read the three documents itself and located e
 
 ## 1. Verdict
 
-**The three documents agree on what they state, and four practices were stated nowhere or could not work as written.** The offline gate, the input guards, the citation check, tracing, budgets, versioning, approval and rollback are aligned and inside Phases 0 and 1. What was missing: typed schemas, a growth loop for the dataset that works while traces hold no message content, a scheduled evaluation of the served version, and an output filter that is claimed and shown refusing. None is a redesign. The owner adopted all four, with one added day in Phase 1.
+**The three documents agree on what they state, and four practices were stated nowhere or could not work as written.** The offline gate, the input guards, the citation check, tracing, budgets, versioning, approval and rollback are aligned and inside Phases 0 and 1. What was missing: typed schemas, a growth loop for the dataset that works while traces hold no message content, a scheduled evaluation of the served version, and an output filter that is claimed and shown refusing. None is a redesign. The owner adopted all four. The session priced them at one day; the independent reviewer of the spec priced them at two and three quarter days, and the owner extended Phase 1 to 20.75 working days (section 10).
 
 ## 2. Coverage table
 
@@ -70,7 +70,7 @@ D46 keeps message content out of traces. Against that:
 
 ## 5. Gaps ranked by impact
 
-The intent's D90 to D95 refer to these by number.
+The intent's D90 to D95 refer to these by number. The day figures in this section are the session's first estimates; section 10 gives the independent ones, which the owner adopted.
 
 1. **Typed schemas.** Pydantic appeared in none of the three documents. Nothing defined the extraction output, the answer's shape or the two evidence records, or what the graph does with invalid model output. Recommendation: Pydantic 2 named and pinned, typed models at the model, tool and record boundaries, schemas compared on every pull request. Half a day, Phase 1. Facts found: FastMCP already refuses an undeclared argument ("on the generated schema and enforces it, so the same call fails"); a Pydantic graph state is validated only "on inputs to the first node in the graph, not on subsequent nodes or outputs"; both chosen models list structured outputs.
 2. **The dataset growth loop could not work as written.** Spec 5.11 built a row from a trace, which holds no content under D46. The plan had no step for it, and the intent's "control bands" were defined nowhere. Recommendation: correct the text at no build cost; the drill in Phase 2 on the eval twin, a quarter of a day.
@@ -104,7 +104,7 @@ Checked on 2026-10-10 against PyPI, the Azure Developer CLI, Microsoft Learn and
 
 ## 8. Decisions
 
-D89 to D96 in docs/intent.md revision 19. In one line each: no Docker on the workstation (D89); typed contracts (D90); the output filter shown refusing (D91); a nightly evaluation of the served version (D92); the dataset growth loop corrected (D93); Phase 1 is 19 working days, with the two new builds third and fourth in its cut order (D94); one table of practice in the spec (D95); a fifth test identity for the filter's test (D96).
+D89 to D96 in docs/intent.md revision 19. In one line each: no Docker on the workstation (D89); typed contracts (D90); the output filter shown refusing (D91); a nightly evaluation of the served version (D92); the dataset growth loop corrected (D93); Phase 1 is 20.75 working days, with the two new builds third and fourth in its cut order (D94); one table of practice in the spec (D95); a fifth test identity for the filter's test (D96).
 
 ## 9. Independent read of the intent, revision 19 at commit 98bf704
 
@@ -128,7 +128,41 @@ The reviewer confirmed all 16 quotations and the price, and found the day figure
 
 The owner was also told that the session had been wrong to say nothing in Phase 0 uses Docker: the spikes of plan steps 0.4, 0.6 and 0.15 build images before the pipeline exists, which is why D89 names `az acr build`.
 
-## 10. Sources opened in this session
+## 10. Independent read of the spec at commit 7a85a41
+
+The reviewer opened all 20 new keys and eight re-used ones and found every quotation exact. It reported four must-level defects and twelve should-level ones in the spec, six sentences that went beyond their sources, and an estimate nearly three times the session's. All were accepted.
+
+| Finding | What was done |
+|---|---|
+| M1. The nightly run's "structural fault" included a tool call the row forbids. A misread intent makes the code call a read tool, so a sound version would have failed on about one night in three | A structural fault is now a cited id that was not returned, or a call to a tool that writes. An unexpected read tool counts against the intent's rate. D92 was corrected |
+| M2. A quota refusal had no defined outcome, and on a day with a pipeline run the sample would be refused | Four named outcomes: passed, structural fault, below a floor, failed to run. The daily quota set after spike S6 covers one gate run and the sample |
+| M3. An older sentence said the deployment's filter "is not a second layer", against the control D91 claims | Restricted to model calls Foundry makes for an agent. The graph's calls are ordinary inference calls through the gateway, and the filter's test is the proof; this is listed as unverified until that test runs |
+| M4. Nothing said who writes the filter identity's agent row, or the low-quota identity's since D84, so a clean clone would fail | The admin script writes both when the tenant is created. The row also opens the tool route, where salon-mcp refuses both identities for want of the agent marker claim |
+| S1. The floor could not be computed for a perfect baseline, and one false alarm in a hundred was per rate | The rate is capped at 0.95 and the one in a hundred is shared across the rates |
+| S2. The nightly job's logins, order and once-a-day guard were unstated | Two logins in one job; the evaluation runs after the checks; a run that finds the day's record does nothing |
+| S3, S4. Exit rows against the cut order; the pipeline's gate list omitted the filter's test | Both rows say "unless cut"; the test is in the gate list and in the diagram, and blocks promotion |
+| S5. The negative demonstration could not run as written | Started by hand against a fixture, marked as a demonstration, after the floors exist |
+| S6. Structured outputs accept only a subset of JSON Schema; a cut completion is also invalid JSON; `refuse`'s own call was unhandled; shared models implied a shared package | The models keep to the subset ("All fields must be required"); the finish reason is read first; `refuse` falls back to a fixed decline; no shared package, the committed schemas are what the packages share |
+| S7. The reason given for not using the personal-data filter was wrong | Restated for each of the two policies |
+| S8. One new row moves a 50-row rate by two points and does not fail the gate | A fault that code can check becomes a failing test first; a must-pass rule for single rows is left to Phase 2 |
+| S9 to S12. Stale figures; this read unrecorded; "up waits"; the practice table's phases and five missing rows | All corrected; the table gained audit and release evidence, the dashboard, the registry and identity, bypass detection and the Defender trial |
+| Beyond their sources: FastMCP's sentence describes a later release than the one pinned; "a third route has appeared"; the README; a hash as a dataset version; "scores and ids"; the tracing page's status | Each restated to what its page says. The unit test stays the control for the tenant rule; three questions joined spike S6's recorded list |
+
+**The estimates.**
+
+| Decision | Session | Independent | Reason given |
+|---|---|---|---|
+| D90, typed contracts | 0.5 | 1.0 | Schema export and the snapshot check, structured outputs within the strict subset, the refusal path and its tests |
+| D91, the output filter's test | 0.25 | 0.5 | The policy and blocklist, a test with its own login and retry, handling in every model node |
+| D92, the nightly evaluation | 0.25 | 1.0 | A single-version mode, the seeded sample, the floors, the guard, the quota case, the Workbook, the demonstration |
+| D93 and D96 | 0 | 0.25 | Conversation ids, the agreement count, one identity with its row and login |
+| Total | 1.0 | 2.75 | |
+
+The owner was asked and adopted the independent figures: Phase 1 is 20.75 working days (D94). Holding 19 days, and moving the nightly evaluation to Phase 2, were not adopted.
+
+The spec's seven diagrams were rendered after the correction. Each is valid, matches its block in the file and shows every label, checked by script; one changed, the release pipeline, which gained the filter's test.
+
+## 11. Sources opened in this session
 
 Every quotation in this file was matched to its page by script on 2026-10-10.
 
@@ -161,6 +195,7 @@ Every quotation in this file was matched to its page by script on 2026-10-10.
 - https://learn.microsoft.com/azure/foundry/agents/concepts/hosted-agents
 - https://learn.microsoft.com/azure/foundry/openai/how-to/use-blocklists
 - https://learn.microsoft.com/azure/foundry/openai/how-to/structured-outputs
+- https://raw.githubusercontent.com/langchain-ai/langchain-azure/main/libs/azure-ai/README.md
 - https://learn.microsoft.com/azure/foundry/openai/concepts/content-filter-personal-information
 - https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure
 - https://learn.microsoft.com/azure/templates/microsoft.cognitiveservices/accounts/raipolicies
