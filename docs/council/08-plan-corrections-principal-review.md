@@ -145,9 +145,30 @@ Found while reading the plan for these corrections and while preparing step 0.2.
 
 The third estimate, of about four days, is answered by D97: the day figures are sizes. Section 11.3 of the plan is new and says which Phase 0 steps wait for which, and which may run in parallel sessions.
 
+## 9. Confirming read of the corrected plan at commit 4c6cebe
+
+One short read, by a reviewer given the decisions and not the reasoning, who was asked whether steps 0.1 and 0.2 can be built from the plan alone. Its verdict was yes for step 0.1, and yes for step 0.2 once one must-level gap and four should-level ones were closed. It traced all fifteen findings of review 07 into the plan's text, matched twenty quotations and facts to their pages with none inexact, and found the condition on the owner's write role well formed and doing what the text says. All of its findings were accepted.
+
+| Finding | What was done |
+|---|---|
+| M1. The owner's login had no data role on either storage account. Shared keys are off, and Owner manages an account without reading its data, so the admin script and `up` would have been refused | The bootstrap gives the owner's login the audit-append role and write on the release records; step 0.3 gives it write on the three tables. Section 9.3 lists them, and the spec's role table names them |
+| S1. `az ad app create` alone makes no service principal and no identifier URI | The four commands are named, with the applications' names and the keys the bootstrap writes to `.env` |
+| S2. The budget module is used twice, so there are two budgets, not one | Proof and blast radius say two |
+| S3. One role definition cannot hold an action "in a second assignment only" | The search delete leaves the teardown role. A fourth role is defined only if spike S4 falls back |
+| S4. No name was given for the container registry or the storage accounts, which allow no hyphen and must be unique across Azure | A naming rule with a suffix worked out at deployment; the bootstrap writes the deployment's outputs to `.env` |
+| S5. Step 0.3 listed five assignments, proved four, and used a command no step wrote | It makes every assignment of section 9.3 on the environment's resources; `maf check roles` joins its files |
+| S6. Six places still let a session take a fallback by itself | Each restated: the session reports and the owner chooses. The ADR template's status line follows |
+| S7. The tenant module set a token quota as a gateway value, against D101 | The clause is removed |
+| S8. A release record exists from step 0.8, long before a `salon-mcp` release image does; and nothing said what points the app at a `scratch/` image | `up` uses the placeholder when the image is absent. A session points the app at a `scratch/` image with `az containerapp update`, and again after a full rebuild |
+| S9. The build that must be refused is outside `scratch/`, and so outside the exception | That one build waits for the owner's yes |
+| S10. Section 11.3 missed two proofs that wait for other steps, the candidate run that every merge starts, and four shared files | All added |
+| Could-level: "without the owner's yes" missing in two places; the metrics role's id; "12.0 of 12"; the build backend; when the custom-metrics portal step is made; the placeholder's port | All corrected |
+
+After these corrections the plan has 159 keys, all resolved and all used, and 82 quotations, of which 71 are found on the pages their paragraphs cite and 11 are the plan's own phrases. The schedule's sums are 12 and 20.75 by script. The plan has no diagram, and none of the spec's seven changed.
+
 ## 10. Sources opened in this session
 
-Every quotation in this file was matched to its page by script on 2026-10-11.
+Every quotation of an outside page in this file was matched to its page by script on 2026-10-11. Words quoted from the three documents themselves are theirs, not a page's.
 
 - https://learn.microsoft.com/azure/container-registry/container-registry-rbac-abac-repository-permissions
 - https://learn.microsoft.com/azure/container-registry/container-registry-rbac-built-in-roles-directory-reference
@@ -174,3 +195,7 @@ Every quotation in this file was matched to its page by script on 2026-10-11.
 - https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 - https://docs.github.com/en/actions/reference/workflows-and-actions/expressions
 - https://code.claude.com/docs/en/skills
+- https://learn.microsoft.com/azure/storage/tables/authorize-access-azure-active-directory
+- https://learn.microsoft.com/graph/api/resources/apiapplication
+- https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/monitor
+- https://docs.astral.sh/uv/concepts/build-backend/
