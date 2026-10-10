@@ -164,6 +164,8 @@ The spec's seven diagrams were rendered after the correction. Each is valid, mat
 
 ## 11. Independent read of the plan at commit 4766d74
 
+Superseded on 2026-10-11: every finding below was applied in session 08. What was done with each is in docs/council/08-plan-corrections-principal-review.md, section 8. The text below is kept as it was written.
+
 The reviewer found the three documents in agreement on every figure, name, outcome and rule of D89 to D96, the schedule arithmetic correct throughout, and seven of the nine new citations fully supported. It did not find the plan buildable from the plan alone. **Its findings are open: none has been applied.** The session ended here at the owner's request, and the corrections are the first work of the next session, before any code.
 
 | Finding | Smallest change, as the reviewer gave it | Needs |
