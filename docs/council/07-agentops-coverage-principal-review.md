@@ -5,7 +5,7 @@ Method: one deep single-reviewer pass with a currency audit, not a council run (
 Reviewer lens: AgentOps on Azure: evaluation before and after release, guardrails, typed contracts, observability and the maintain loop, on Microsoft Foundry hosted agents.
 Reads: the three documents above, docs/journal/06-implementation-plan-gate.md section 7, docs/council/06-implementation-plan-phase-0-1-principal-review.md sections 1 and 2, CLAUDE.md.
 
-How the pass was made. The session read the three documents itself and located every practice in each. Three research subagents, which wrote nothing, checked Microsoft's current pages for offline evaluation, online evaluation, and observability and guardrails. The session then matched every quotation it relies on to its page by script: 68 in the check itself, and the quotations of each revised document again before its commit. Each revised document was read by an independent reviewer who was given the decisions and not the reasoning, before the next document was derived from it (section 9 onwards).
+How the pass was made. The session read the three documents itself and located every practice in each. Three research subagents, which wrote nothing, checked Microsoft's current pages for offline evaluation, online evaluation, and observability and guardrails. The session then matched every quotation it relies on to its page by script: 68 in the check itself, and the quotations of each revised document again before its commit. Each revised document was read by an independent reviewer who was given the decisions and not the reasoning, before the next document was derived from it (sections 9 to 11).
 
 ## 1. Verdict
 
@@ -162,7 +162,38 @@ The owner was asked and adopted the independent figures: Phase 1 is 20.75 workin
 
 The spec's seven diagrams were rendered after the correction. Each is valid, matches its block in the file and shows every label, checked by script; one changed, the release pipeline, which gained the filter's test.
 
-## 11. Sources opened in this session
+## 11. Independent read of the plan at commit 4766d74
+
+The reviewer found the three documents in agreement on every figure, name, outcome and rule of D89 to D96, the schedule arithmetic correct throughout, and seven of the nine new citations fully supported. It did not find the plan buildable from the plan alone. **Its findings are open: none has been applied.** The session ended here at the owner's request, and the corrections are the first work of the next session, before any code.
+
+| Finding | Smallest change, as the reviewer gave it | Needs |
+|---|---|---|
+| 1. Must. Step 1.12 skips the nightly evaluation only if the day's record exists. On a night with no gateway the run would end failed-to-run, against the intent's "each night the gateway exists" | In steps 0.10 and 1.12: with no gateway, both steps of the `dev` job skip, say so, exit zero and write no record | Text |
+| 2. Must. `az acr build` in steps 0.4, 0.6 and 0.15 has no stated runner and writes to the registry in the persistent group, which D40 says no session touches. The registry's role mode is unstated: step 0.3 grants a repository-scoped reader role, and in that mode a quick build is said to need repository writer and catalogue lister roles for its caller, which no step assigns | Say the owner runs the builds, or record an exception to D40; fix the role mode in `registry.bicep` and assign the roles in step 0.2 | The owner's decision; the role claim is the reviewer's and has not been checked against the page by this session |
+| 3. Should. Step 0.10 puts the checks and the delete in one job; step 1.12 assumes three jobs | Three jobs in step 0.10: checks; `dev` after it, always; delete after both, always; a time limit on `dev` | Text |
+| 4. Should. "Settled in the first hour of step 1.3", but step 1.3 has no container and nothing that can call the model route | One strict-schema call added to spike S1, test 1, as a record; or move the sentence to step 1.4 | Text; the first touches D94's sentence on Phase 0 |
+| 5. Should. Section 9.2 regenerates the gateway's copy after steps 4, 8 and 9 only; steps 11 and 12 also write agent rows | Add 11 and 12, or move them before step 5 | Text |
+| 6. Should. The records are models "from the first step that writes them", but `records.py` is listed first in step 1.1 | Add `records.py` to step 0.8's files | Text |
+| 7. Should. "The spike images of steps 0.4, 0.6 and 0.15" is incomplete: step 0.4 needs two images, step 0.12 changes the adapter, and step 1.1 deploys salon-mcp before the candidate job builds it | One rule: any image needed outside the candidate job; the command given once, with registry, name, tag, file and build context | Text |
+| 8. Should. Step 1.12 runs the nightly evaluation "by the route step 1.9 uses", which may be the Action | "Always by `maf gate run`'s own calls" | Text |
+| 9. Should. The model deployments name a policy that is a separate raw resource; the order on a full rebuild, and what applies the changed module to an existing group, are unstated | Raw deployments with `dependsOn`; name the command that applies the change | Text, after reading step 0.10 |
+| 10. Should. Cut item 4 drops "the two tests"; the intent and the spec cut "the test" | Cut the end-to-end test and its login only; the unit test stays | Text |
+| 11. Should. [bicep-blocklist] is the list's page; the item's properties are on another | A key for the item's page; pin the API version on both | Text, with the page opened |
+| 12 to 15. Could. Stale labels (D94 missing beside D87 in two places, D96 in one); the layout omits `replies.py`, the exporters and `tests/fixtures/`; the spec says two new fixed replies where the plan words three; details an engineer would invent (the comparer's normalisation, `additionalProperties: false` needing `extra='forbid'`, the test's prompt and retry interval, the manual trigger's inputs, outcome precedence) | As listed in the reviewer's report, reproduced in the journal's handover | Text |
+
+**A third estimate.**
+
+| Decision | Plan, from review section 10 | This reviewer | Reason given |
+|---|---|---|---|
+| D90 | 1.0 | 1.5 | Three exporters, a comparer across two schema generators, structured outputs through the gateway with a fallback, the invalid-output path, two versioned records |
+| D91 | 0.5 | 0.75 | The policy's deployment order, an end-to-end test with its own login and a five-minute loop, unit tests for four nodes in two cases |
+| D92 | 1.0 | 1.25 to 1.5 | Sampling, floors, four outcomes, the skip, a three-job workflow with two logins, a fixture; every live check needs the gateway and a full run |
+| D93 and D96 | 0.25 | 0.4 | As planned, plus the list entries in four steps |
+| Total | 2.75 | 3.9 to 4.15 | |
+
+Three estimates now exist: 1.0, 2.75 and about 4. The reviewer's own remark is that 2.75 is credible only as a floor, and that the cut order returns 1.33 days from the nightly evaluation and the filter's test, so an overrun of this size cuts the nightly evaluation. Whether the box changes again is the owner's decision and is open.
+
+## 12. Sources opened in this session
 
 Every quotation in this file was matched to its page by script on 2026-10-10.
 
