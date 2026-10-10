@@ -65,7 +65,29 @@ Checked on 2026-10-10 against PyPI, the Azure Developer CLI's extension registry
 | Foundry's ARM API version | 2026-07-01 | The provider lists 2026-09-01 and 2026-09-15-preview for accounts and projects. Microsoft's template reference, the page that documents each property, lists 2026-07-01 as its newest stable version and 2026-07-15-preview as its newest preview | Stays at 2026-07-01, because the plan cites the template reference for every property it sets. Looked at again in step 0.3 with the Bicep linter's recent-versions rule |
 | The blocklist item's resource | Cited to the blocklist's page | Its own page: properties `pattern` and `isRegex` | A key of its own; 2026-07-01 on both |
 
-## 5. Sources opened in this session
+## 5. Independent read of the intent, revision 20 at commit 3d51839
+
+The reviewer was given the five decisions and not the reasoning. It confirmed all nine quotations word for word and found the decision numbers, the figures and the amendment notes consistent. It reported two must-level defects, both in D98, and ten should-level ones. All were accepted.
+
+| Finding | What was done |
+|---|---|
+| M1. The pipeline identity could not sign in to the registry. Container Registry Repository Writer carries no right on the registry resource, and the roles reference lists "authenticate and login to the registry using `az` CLI via the `az acr login` command" under other roles | The pipeline identity also gets Container Registry Configuration Reader and Data Access Configuration Reader, which reads settings and grants nothing on images. The session checked the claim on the page before accepting it |
+| M2. "The one thing a session does in the persistent group" was untrue: `up`, which a session may run after the owner's yes, writes audit records there and assigns the project identity's role on the registry | Restated as the one thing a session does there without the owner's yes; D98 now says which step makes each role assignment |
+| S1. A failed spike and an unfinished one were not told apart, and two sentences hid a change to D80 and D81 behind a semicolon | Any miss, a plain failure included, goes to the owner. No spike takes its fallback by itself. The named fallbacks of earlier decisions stay the named ones |
+| S2. Parallel sessions share one environment, one gateway and one daily quota, and nothing said so | Only one session at a time holds the dev environment; a risk line was added |
+| S3. The condition on the owner's write role was stated as fact. Microsoft's page shows such a condition on a read role only, and copied on to a write role that example would leave writes unconditioned | The condition names the role's two write actions. It is shown and not assumed: at the first build, a build to a name outside `scratch/` must be refused (D31). The owner is told if it is not |
+| S4. No cited page supported the pull by Container Apps | The registry's roles overview is cited, which names Azure Container Apps among the pullers the reader role is for |
+| S5. D98 did not say where the rule is written, or whether the cost limits apply | CLAUDE.md's Azure writes rule carries the exception; the limits of D21 apply |
+| S6. D20 and D9 lacked notes | Added |
+| S7. The intent said this file holds what was done with every finding, and at that commit it did not | Section 8 below holds it |
+| S8. D100's "one call" named no deployment, and did not say why the question is open or what a refusal changes | One call to each deployment; the page's note on the Foundry Agents Service is named; a refusal means the model is asked for JSON and the result is validated in code |
+| S9. D101 did not say from which checkout `up` applies the template, what it must leave alone, or what applies a changed template of the persistent group | From the checkout it is run in, which is why one session holds the environment. It passes back salon-mcp's current image and the current quota. The owner applies a changed persistent template by running the bootstrap again |
+| S10. "Three" collided with the spec, which already counts three fixed replies including the older one | Three new fixed texts, four in all with the reply of D46 |
+| Could-level: two decisions cited for things they do not say; D97 did not carry "in one go" or say that the items D81 moved stay moved; the flag was alluded to and not named; who deletes a `scratch/` image; what keeps salon-mcp off its `scratch/` image | All corrected. No session deletes a `scratch/` image. The served-image check also fails if salon-mcp is found running one once a release exists, which is a small addition to plan step 1.11 and is the session's own |
+
+Two things in this table go beyond what the owner was asked: the pipeline identity's second role, and the added clause in the served-image check. Both are put to the owner in the session's summary.
+
+## 6. Sources opened in this session
 
 Every quotation in this file was matched to its page by script on 2026-10-10.
 
