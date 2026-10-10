@@ -54,9 +54,11 @@ currency audit instead of a council rerun (D70), written to `docs/council/NN-<st
 
 ## Architecture
 
-Design: `docs/spec-phase-0-1.md`, sections 3 to 5, accepted 2026-10-04. In eight lines:
+Design: `docs/spec-phase-0-1.md`, sections 3 to 5, accepted 2026-10-04 and revised for D89 to D96.
+In eight lines:
 1. Salon agent: LangGraph on a Foundry hosted agent, one Foundry project per tenant, in UK South;
-   the graph is a plain package behind a thin hosting adapter.
+   the graph is a plain package behind a thin hosting adapter. What the models return, the tools'
+   inputs and results and the evidence records are Pydantic models; their schemas are committed (D90).
 2. salon-mcp (FastMCP on Container Apps): the tools, Table Storage bookings and one keyword AI Search
    index per tenant; it enforces the tenant boundary in code from the caller's identity.
 3. Gateway: API Management Basic v2 in UK West meters and caps tokens per tenant and agent, fronts
@@ -67,7 +69,9 @@ Design: `docs/spec-phase-0-1.md`, sections 3 to 5, accepted 2026-10-04. In eight
 5. Two groups: persistent (identities, logs, audit, evidence, Workbook, budget), never torn down; the
    dev environment, built by `up` and removed only by a full `down`.
 6. Release: Actions with OIDC deploys a candidate version; the eval gate, scripted write tests and
-   guardrail test run on a pinned session; a GitHub Environment approval moves the served selector.
+   guardrail test run on a pinned session, and the output filter's test on the model route (D91); a
+   GitHub Environment approval moves the served selector. A nightly run evaluates the served
+   version on a 20-row sample (D92).
 7. Evidence: an immutable GitHub Release per promotion with the record, attested image digest and
    eval summary, copied to the persistent storage account. GitHub, not Azure, enforces the gate.
 8. Telemetry: OpenTelemetry to Application Insights, nine attribution keys on every agent span, five

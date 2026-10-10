@@ -169,6 +169,8 @@ Time, from tool and commit clocks, so approximate. No step had an estimate, and 
   the check, the currency audit and the three independent reads.
 - Local tools on the workstation: Bicep 0.48.1, uv 0.13.0, azd 1.35.0 with `azure.ai.agents`
   1.0.0-beta.18. No Docker.
+- [CLAUDE.md](../../CLAUDE.md): the architecture summary names typed contracts, the output filter's
+  test and the nightly evaluation, on the owner's yes. 81 lines.
 - No application code, no infrastructure, no Azure write. `/cleanup` found nothing to remove.
 
 ## 6. Reusable lessons
@@ -186,22 +188,30 @@ Time, from tool and commit clocks, so approximate. No step had an estimate, and 
 
 ## 7. Next session
 
-Owner, before the next session, three decisions:
+Three questions were put to the owner at the end of the session. All three were answered the same
+evening, and the answers follow each question. They are not yet recorded as decisions: that is
+the next session's first work, D97 onwards, intent first.
 1. **The Phase 1 box.** Three estimates exist for the additions: 1.0, 2.75 (adopted) and about 4.
    Hold 20.75 and let the cut order pay, where the nightly evaluation goes third; or extend to 22;
    or move the nightly evaluation to Phase 2 now.
+   **Answer:** do not worry about the day estimates. Do it all in one go where that makes sense;
+   sessions may run in parallel, and Claude Code does nearly all of the work. Nothing is cut or
+   moved.
 2. **Who runs `az acr build`.** The registry is in the persistent group, which D40 says no session
    touches. Either the owner runs each spike image build, or D40 gains an exception.
+   **Answer:** the exception, as recommended: a session runs the image builds into the project's
+   registry.
 3. **CLAUDE.md's eight-line architecture summary** does not mention typed contracts, the output
    filter's test or the nightly evaluation. Say whether to add them.
+   **Answer:** yes. Done in this session.
 
 Next session (finish the plan, then Stage 4, Build, from plan step 0.1):
 1. Pre-flight without Docker. Read CLAUDE.md, this section, review 07 sections 10 and 11, and
    plan sections 1 to 4, 9 and 11.
 2. Apply review 07, section 11, to the plan: every finding is open. Findings 1, 3, 5, 6, 7, 8 and
    10 are text. Finding 2 needs decision 2 above and the registry's role mode checked against
-   Microsoft's page, which this session did not open. Finding 4 touches D94's sentence on Phase
-   0. Finding 9 needs step 0.10 read. Finding 11 needs the blocklist item's page. A change to the
+   Microsoft's page, which this session did not open; CLAUDE.md's rule that nothing touches the
+   persistent group changes with it. Finding 4 touches D94's sentence on Phase 0. Finding 9 needs step 0.10 read. Finding 11 needs the blocklist item's page. A change to the
    intent or the spec is D97 onwards, intent first. Citation check by paragraph over the whole
    plan; schedule sums by script; one short confirming read.
 3. Step 0.1 on a branch and by pull request. Re-resolve the pins: uv 0.13.0, fastmcp 4.1.0,
