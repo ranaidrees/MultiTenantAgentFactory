@@ -158,7 +158,8 @@ no actual to set against their 0.25 and 0.5 day.
 - On the workstation: the azd extension is at 1.0.0-beta.19. uv's cache is at `M:\uv-cache`. The
   system drive has 4.97 GB free.
 - No application code, no infrastructure, no Azure write, no pull request. `/cleanup` checked 33
-  files and removed nothing; it proposes one note on review 07, for the owner to decide.
+  files and removed nothing. It proposed one note, which the owner approved: review 07, section 11,
+  now says at its top that its findings were applied in session 08.
 
 ## 6. Reusable lessons
 
@@ -176,20 +177,29 @@ no actual to set against their 0.25 and 0.5 day.
 
 ## 7. Next session
 
-Three things are put to the owner:
+Four things were put to the owner at the end of the session, and all four were answered the same
+night. The answers follow each. The first needs nothing. The second and third are not yet
+recorded as a decision: that is the next session's first work, D102, intent first.
 
 1. **The pipeline identity holds a second role on the registry,** the read-only configuration
    reader, because Microsoft's roles reference lists `az acr login` under it and gives the writer
-   role no right on the registry resource. It goes beyond what was asked. Say if it should not.
+   role no right on the registry resource. It goes beyond what was asked.
+   **Answer:** no objection. It stands as D98 has it.
 2. **Whether CLAUDE.md should carry the rules for parallel sessions** of plan section 11.3: one
    step, branch, pull request and working tree for each session; one session at a time holds the
-   dev environment; a spike's miss goes to the owner. Recommended, in three lines.
+   dev environment; a spike's miss goes to the owner.
+   **Answer:** yes, as recommended, in three lines.
 3. **Who merges the pull requests of Build.** The plan says a session does not merge its own.
+   **Answer:** Claude Code can merge Build's pull requests. This changes rule 1 of plan section
+   11.3 and the Commits row of plan section 3.
+4. **The one note `/cleanup` proposed,** on review 07, section 11.
+   **Answer:** add it. Done in this session, in commit e302f93.
 
 Next session (Stage 4, Build, steps 0.1 and 0.2):
 
 1. Pre-flight without Docker. Read CLAUDE.md, this section, and the plan's sections 1 to 3, steps
-   0.1 and 0.2, and sections 9.1, 9.3, 9.9 and 11.3.
+   0.1 and 0.2, and sections 9.1, 9.3, 9.9 and 11.3. Then record answers 2 and 3 above as D102:
+   the intent, then the plan's section 3 and rule 1 of section 11.3, then CLAUDE.md.
 2. Step 0.1 on a branch and by pull request: the workspace, the three packages, `cli.py`, `pr.yml`
    in its first form, and CLAUDE.md's Commands section. The pins are in plan section 3 and were
    locked together on 2026-10-10. Every uv command runs with `UV_CACHE_DIR=M:\uv-cache`.
