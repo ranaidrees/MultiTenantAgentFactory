@@ -1,8 +1,8 @@
 # Spec: Phases 0 and 1 (foundations and the governed single-tenant MVP)
 
-Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan), for D80 (the gateway also fronts the agent endpoint, gated by spike S1) and for D81 and D82 (the time the agent route is given, and the test identities); corrected the same day for principal review 06 of the plan (the hosting library pins, the owner's role, and two rows that D73 and D74 had missed), and revised for D83 to D88 (the owner's decisions after that review); revised on 2026-10-10 for D89 to D96, the owner's decisions at the AgentOps coverage check before Build (typed contracts, the output filter shown refusing by a test identity of its own, a nightly evaluation of the served version, the dataset growth loop, the Phase 1 box and its cut order, and one table of practice by phase). Date: 2026-10-10.
-Stage: 2 of 6 (Design). Reads: docs/intent.md revision 19 (decisions D1 to D96).
-Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217. The changes for D89 to D96 were read independently before the plan was derived from them: docs/council/07-agentops-coverage-principal-review.md.
+Author: Rana Naveed Idrees. Status: accepted by the owner on 2026-10-04, after council review 03 and principal review 04; revised the same day for D71 (the gateway fronts salon-mcp), for D72 to D79 (the owner's decisions after council review 05 of the plan), for D80 (the gateway also fronts the agent endpoint, gated by spike S1) and for D81 and D82 (the time the agent route is given, and the test identities); corrected the same day for principal review 06 of the plan (the hosting library pins, the owner's role, and two rows that D73 and D74 had missed), and revised for D83 to D88 (the owner's decisions after that review); revised on 2026-10-10 for D89 to D96, the owner's decisions at the AgentOps coverage check before Build (typed contracts, the output filter shown refusing by a test identity of its own, a nightly evaluation of the served version, the dataset growth loop, the Phase 1 box and its cut order, and one table of practice by phase); revised on 2026-10-11 for D97 to D101, the decisions taken on 2026-10-10 when the plan was finished (the day figures as sizes and not boxes, session image builds and the container registry's role mode, structured outputs tried in spike S1, `up` applying the environment's Bicep on every run, and three new fixed texts). Date: 2026-10-11.
+Stage: 2 of 6 (Design). Reads: docs/intent.md revision 20 (decisions D1 to D101).
+Council record: docs/council/03-spec-phase-0-1-review.md, which reviewed the draft at commit e13557b; docs/council/04-spec-phase-0-1-principal-review.md, a single-reviewer pass with a currency audit, which reviewed the revision at commit dea7217. The changes for D89 to D96 were read independently before the plan was derived from them: docs/council/07-agentops-coverage-principal-review.md. The changes for D97 to D101 were read independently before the plan was corrected: docs/council/08-plan-corrections-principal-review.md.
 Next artifact: docs/implementation-plan-phase-0-1.md, after this spec is accepted.
 
 ## 1. Status and scope
@@ -11,7 +11,7 @@ This spec designs the remaining Phase 0 deliverables and the Phase 1 MVP. It des
 
 In scope:
 - Phase 0: the rest of the delivery harness, the infrastructure skeleton, CI with OIDC, and six
-  time-boxed spikes that settle the open technical questions before any Phase 1 code.
+  spikes that settle the open technical questions before any Phase 1 code.
 - Phase 1: one governed agent for one tenant in the dev environment, built so that a second tenant
   is a second run of the same module.
 
@@ -22,8 +22,9 @@ line (D30); real personal data (D29).
 
 Citation rule: every design claim carries a key in square brackets that resolves to a URL in
 section 13. Every URL was opened on 2026-10-03, in the design session, the gate session or the
-review session. The rows added for D89 to D96 were opened on 2026-10-10, and their quotations
-were matched to the pages by script that day.
+review session. The rows added for D89 to D101 were opened on 2026-10-10, and their quotations
+were matched to the pages by script that day. The quotations of the whole document were matched
+again on 2026-10-11, when it was revised for D97 to D101.
 Prices are from the Azure Retail Prices API on the same day, in GBP, and are marked [prices].
 Microsoft prices in USD: "Other non-USD prices returned by the API are for your reference to help
 you estimate budget expenses" [prices-api]. Where something could not be verified, the text says so
@@ -146,7 +147,7 @@ the Azure Retail Prices API at the gate and are in section 8. What remains:
 | Whether a hosted agent's endpoint can be made private | Microsoft's pages disagree. One section says "The agent endpoint stays public in this preview" [ha-vnet]. The same page says the account "is reachable only through a private endpoint, for both data-plane and ARM calls" [ha-vnet], and the configuration page says that with public network access disabled "Other agent protocols and project APIs remain private" [ha-config] | Not needed in Phase 1, which has no private networking (D52); settled in Phase 2 with the tool-path lock (D80) |
 | Whether two `FixedRatio` rules split traffic | Two pages say "Traffic splitting between versions isn't supported" [ha], [manage]; a preview page documents a 90/10 canary [azd-prod] | Five minutes in spike S5 |
 | The price of the evaluations meter and of Defender for AI Services after its trial | The pricing pages render no figure | Not a planning assumption; Defender is disabled before its trial ends (D66) |
-| Whether structured outputs work from the hosted container through the gateway, and how the LangChain integration asks for them | The integration's README names `with_structured_output(method="json_schema")` in its changelog only [lc-azure]. The structured outputs page lists the Assistants and the Foundry Agents Service among the things they are not supported with [structured-outputs]; the graph's calls are ordinary inference calls to a model deployment, which is read as outside that note | Settled in the first hour of the graph's build. The typed models and their validation in code do not depend on the answer: if a strict schema is refused, the model is asked for JSON and the result is validated in code (D90) |
+| Whether structured outputs work from the hosted container through the gateway, and how the LangChain integration asks for them | The integration's README names `with_structured_output(method="json_schema")` in its changelog only [lc-azure]. The structured outputs page lists the Assistants and the Foundry Agents Service among the things they are not supported with [structured-outputs]; the graph's calls are ordinary inference calls to a model deployment, which is read as outside that note | Tried in spike S1, test 1, as a record and not a go criterion, so that the answer is known before the graph is written (D100). The typed models and their validation in code do not depend on the answer: if a strict schema is refused, the model is asked for JSON and the result is validated in code (D90) |
 | What Foundry's job that turns traces into a dataset returns when the traces hold no message content | The page says its rows hold "the description, query, and response for each" [traces-dataset] and is silent on traces without content | Not used in Phase 1; the Phase 2 eval twin (D93) |
 | How Foundry's own recurring evaluations treat a hosted agent | The tools page pairs "evaluation rules for prompt agents, or scheduled evaluation runs for hosted agents" [foundry-mcp-tools]. Microsoft's SDK sample of a schedule shows a quality run that scores a column of recorded responses, and a red-team run against an agent [eval-sched-sample]. A scheduled quality run that calls a hosted agent with a dataset's queries is not shown | Not needed in Phase 1: the nightly workflow makes the call itself, and only it knows whether the gateway exists that night (D92). Continuous rules are a Phase 6 matter |
 | Whether an evaluation run returns the agent's conversation id, and under which identity the service calls the agent | The targets page describes output text and output items only [eval-targets] | Recorded in spike S6 (D93); without an id, an evaluation turn is found by its run and its row |
@@ -213,6 +214,21 @@ docs/council/07-agentops-coverage-principal-review.md.
 | What pays for D90 to D93 and D96, and where they sit if Phase 1 is at risk | Phase 1 is 20.75 working days, on the independent estimate made when this revision was read; Phase 0 stays 12; nothing is cut. In the cut order the nightly evaluation is third and the filter's test fourth | D94 |
 | No single table said which practice is built in which phase | Section 5.12 | D95 |
 | The independent read of intent revision 19: the filter's test reused the low-quota identity, against D84, and would have failed on a second run in a day | A fifth test identity, with an agent row of its own and a quota of 5,000 tokens | D96 |
+
+### 2.9 Decisions when the plan was finished, before Build
+
+The plan's independent read left its findings open (section 11 of
+docs/council/07-agentops-coverage-principal-review.md), and the owner had answered three
+questions. What was done with every finding is in
+docs/council/08-plan-corrections-principal-review.md.
+
+| Question or finding | Answer | Decision |
+|---|---|---|
+| Three estimates existed of what D90 to D96 add. Is the Phase 1 box held, extended, or is work moved out of it? | None of these. The day figures are sizes and not boxes, and nothing is cut or moved. A spike is settled by its go criteria and not by the clock, and any miss goes to the owner, who chooses the fallback or another session. The cut orders stay written and only the owner invokes them. Build steps may run in parallel sessions, with one session at a time holding the dev environment | D97 |
+| Finding 2: who runs `az acr build`, when the container registry is in the persistent group, and in which role mode is that registry? | A session may run it, into repositories under `scratch/` only; it is the one thing a session does in the persistent group without the owner's yes. The registry uses the mode with repository roles, and section 4 names the roles, among them a second, read-only role with which the pipeline identity signs in to the registry | D98 |
+| Should CLAUDE.md's architecture summary name the typed contracts, the filter's test and the nightly evaluation? | Yes; done in session 07 and recorded | D99 |
+| Finding 4: structured outputs through the gateway were to be settled in a step that has no container | Tried in spike S1, test 1, with one call to each deployment, as a record | D100 |
+| Finding 9: nothing applied a changed Bicep module to a group that already exists. Finding 14: section 12 counted two new fixed replies | `up` applies the environment's Bicep on every run and leaves alone what other actors own. The new fixed texts are three, which makes four in all | D101 |
 
 ## 3. Architecture
 
@@ -333,6 +349,17 @@ for the evidence because nothing the evidence depends on lives in it (D28). The 
 is in the persistent group so that its role assignments on persistent resources do not have to
 propagate again after a full rebuild; Table Storage role assignments "may take up to 30 minutes to
 propagate" [table-entra].
+
+The container registry is created in the role mode "RBAC Registry + ABAC Repository Permissions"
+(D98). Microsoft says that this mode "will become the default role assignment permissions mode
+for Azure Container Registry in the future", and that in it "Legacy ACR roles such as `AcrPull`,
+`AcrPush`, and `AcrDelete` are not honored in ABAC-enabled registries" [acr-abac]. Images are
+therefore pulled and pushed with the repository roles that section 4 names. Release images are
+built, pushed and attested by the candidate job alone (section 5.9). An image that is needed
+outside that job, which means every spike image of Phase 0 and salon-mcp's image until the
+pipeline builds it, is built in the registry with `az acr build`, into a repository under
+`scratch/`, and is never promoted (D89, D98). The served-image check also fails if salon-mcp is
+found running an image from `scratch/` once a release exists (section 5.9).
 
 The model deployments have their own Foundry resource because a hosted agent has implicit access to
 model inferencing within its own project [ha-perm]. Models left beside the agent would be reachable
@@ -460,12 +487,13 @@ What each identity holds (D42). Exact role definitions are for the implementatio
 
 | Identity | Holds | Does not hold |
 |---|---|---|
-| The owner's login, used by sessions and scripts | Subscription Owner (D20); Foundry Project Manager on the tenant project, which deploying a hosted agent requires [deploy] and which carries the data-plane right to call the agent that Owner lacks [ha-perm] | Nothing is withheld; see section 11 |
-| Pipeline identity | Push to the registry; Foundry User at project scope, the least built-in role carrying `agents/write`, which creates a version and moves the selector [ha-perm] (D78); deploy salon-mcp and gateway policies in the environment group; write release records; write the registry's rows when it registers a new agent's identity on a clean clone (D83) | Foundry Project Manager; purge rights; any role outside the two groups; a caller row, because its calls to the agent are made as the consumer-only test identity (D86) |
+| The owner's login, used by sessions and scripts | Subscription Owner (D20); Foundry Project Manager on the tenant project, which deploying a hosted agent requires [deploy] and which carries the data-plane right to call the agent that Owner lacks [ha-perm]; on the container registry, the repository reader and catalogue lister roles, and the repository writer role limited to repositories under `scratch/` by a condition on the assignment, because in the registry's mode Owner applies to the registry itself "without granting data plane permissions to the repositories and images in the registry" [acr-abac] (D98) | Write on a release image's repository, by that condition. Nothing else is withheld, and this login could change its own roles; see section 11 |
+| Pipeline identity | Push to the container registry, as Container Registry Repository Writer, and sign-in to it as Container Registry Configuration Reader and Data Access Configuration Reader, a role that reads the registry's settings and grants nothing on images; the writer role carries no right on the registry resource, and the roles reference lists "authenticate and login to the registry using `az` CLI via the `az acr login` command" under the second [acr-roles] (D98); Foundry User at project scope, the least built-in role carrying `agents/write`, which creates a version and moves the selector [ha-perm] (D78); deploy salon-mcp and gateway policies in the environment group; write release records; write the registry's rows when it registers a new agent's identity on a clean clone (D83) | Foundry Project Manager; purge rights; any role outside the two groups; a caller row, because its calls to the agent are made as the consumer-only test identity (D86) |
 | Teardown identity | Delete and read on the gateway; read access for the nightly checks (D74) | Purge actions; any right to create or change a resource |
 | Agent identity | Calls to the gateway and salon-mcp; implicit access within its own project [ha-perm] | Any role on the model resource |
+| The tenant project's managed identity | Pull from the container registry, as Container Registry Repository Reader, which Microsoft calls "preferred because it models the pull as a data action" [ha-perm] (D98); an agent row of its own in the registry table, under which the eval judge's tokens are metered (D75) | Anything else |
 | Gateway identity, user-assigned in the persistent group (D73) | Cognitive Services OpenAI User on the model resource [apim-auth]; Monitoring Metrics Publisher on Application Insights for its logger; nothing on salon-mcp or on the agent, because it forwards the caller's token (D71, D80) | Anything else, including any right to call the agent or to act as an end user |
-| salon-mcp workload identity | Read and write on bookings and catalogue; read on the registry; query on the tenant indexes; add and read on the audit table [table-authz] | Update or delete on the audit table; write on the registry |
+| salon-mcp workload identity | Read and write on bookings and catalogue; read on the registry; query on the tenant indexes; add and read on the audit table [table-authz]; pull from the container registry, as Container Registry Repository Reader, so that Container Apps can fetch its image; Microsoft's overview of the registry's roles names Azure Container Apps among the pullers this role is for [acr-roles-overview] (D98) | Update or delete on the audit table; write on the registry |
 | Test identity that is served (D82), which is also the identity the pipeline's calls to the agent are made as (D86) | Foundry Agent Consumer at project scope [ha-perm] (D83); a caller row | Anything else |
 | Test identity that Foundry refuses (D82) | A caller row | The role; anything else |
 | Test identity that the gateway refuses (D82) | Foundry Agent Consumer at project scope [ha-perm] (D83) | A caller row; anything else |
@@ -680,8 +708,8 @@ Python client directly; no LangChain adapter is used (D61). Versions are pinned 
 Each tool's parameters and result are Pydantic models (D90). FastMCP builds the input schema from
 the parameters. Its current documentation says of a call that carries an unexpected key that the
 library declares additional properties false "on the generated schema and enforces it, so the same
-call fails" [fastmcp-docs]. That documentation describes a later release than the one pinned in
-section 7, so the control for the rule in section 4 that no tool accepts a tenant_id stays the
+call fails" [fastmcp-docs]. The page does not say from which release that holds,
+so the control for the rule in section 4 that no tool accepts a tenant_id stays the
 unit test, which runs against whatever version is pinned. The four tool schemas, inputs and
 results, as the server lists them, are exported to a committed snapshot and compared on every
 pull request (section 5.9).
@@ -1231,6 +1259,8 @@ Controls around the gate (D42):
 - **Served-image check.** A step at the start of every pipeline run, and again in the nightly
   workflow, compares the image digest of the served version with the latest approved release
   record and fails on a difference. It detects a promotion that did not come through the gate.
+  Once a release exists it also fails if salon-mcp is found running an image from `scratch/`,
+  where a session builds the images that are needed before the pipeline builds them (D98).
 - **Pinned Actions.** Every Action is referenced by full commit SHA: "Pinning an action to a
   full-length commit SHA is currently the only way to use an action as an immutable release"
   [gh-secure]. The repository setting "Require actions to be pinned to a full-length commit SHA"
@@ -1274,8 +1304,19 @@ candidate to nobody until promotion; a canary is a Phase 2 option.
 ### 5.10 Up, down and nightly teardown
 
 - **`up`.** Brings the environment to a working state from wherever it is.
-  - On a working day the environment group exists and only the gateway is missing. `up`
-    purges the soft-deleted instance, creates it with its policies and registry values, waits, and
+  - Every run first applies the environment's Bicep (D101). That is safe to repeat, because "Bicep
+    files are idempotent, which means that you can deploy the same file many times and get the
+    same resource types in the same state" [bicep-overview]. A changed module therefore reaches a
+    group that already exists, which is how the guardrail policy that Phase 1 adds to the model
+    resource (section 5.7) reaches a group built in Phase 0. `up` applies the template of the
+    checkout it is run in, which is one reason that only one session at a time holds the
+    environment (D97). The template holds nothing that another actor owns: `up` reads salon-mcp's
+    current image and the current token quota from the environment and passes them back, so
+    applying it undoes neither a release nor a quota raised for a spike or a baseline day (D76,
+    D85). The served selector and the registry's rows are not in the template at all. A changed
+    template of the persistent group is applied by the owner running the bootstrap again.
+  - On a working day the environment group exists and only the gateway is missing. After the
+    template, `up` purges the soft-deleted instance, creates it with its policies and registry values, waits, and
     runs a smoke test through the gateway's agent route (D74, D80). Microsoft says a Basic
     v2 instance will "typically provision within 5-10 minutes" [ai-gw]. The gateway keeps its name,
     which a purged instance frees for reuse in the same subscription [apim-softdel], so agent
@@ -1306,8 +1347,10 @@ candidate to nobody until promotion; a canary is a Phase 2 option.
   to the owner.
 
 The scripts are run by the owner with the owner's login (D20). A session may run the default
-`down` without asking; a full `down` waits for the owner's yes, and no session touches the
-persistent group (D40).
+`down` without asking; a full `down` waits for the owner's yes (D40). No session touches the
+persistent group, with one exception: once it has stated the cost and the blast radius, a session
+may build an image into the container registry's `scratch/` repositories with `az acr build`
+(D98, section 3.2).
 
 ### 5.11 Definition of good
 
@@ -1444,7 +1487,7 @@ of the write intents, the loop's drill, safety evaluators and red teaming, all i
 
 | Deliverable | Acceptance check |
 |---|---|
-| Bootstrap: persistent group; pipeline, teardown and workload identities, the gateway's identity (D73) and the five test identities (D82, D84, D96); federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
+| Bootstrap: persistent group; the container registry in the role mode of D98, with its role assignments; pipeline, teardown and workload identities, the gateway's identity (D73) and the five test identities (D82, D84, D96); federated credentials; the two Entra app registrations; the teardown custom role; budget; three GitHub environments restricted to `main`; branch protection; immutable releases; the repository setting that requires actions pinned to a full SHA (D62); Dependabot and code scanning | One command creates the Azure side; a workflow in `dev` on `main` obtains a token and one outside does not |
 | IaC skeleton: environment Bicep, tenant module in its Bicep and script parts, `up`, both forms of `down`, nightly teardown | Spike S5 passes |
 | CI with OIDC: pull request checks and the release workflow skeleton, every Action pinned by full SHA, read-only default token, image attestation (D62) | A no-op change travels from pull request to promotion, with approval, and its attestation verifies |
 | Mutation testing and a complexity-and-coverage report on the control modules (D68) | A mutated control module fails the pull request check |
@@ -1469,11 +1512,21 @@ on the repository is the control that does not depend on the session.
 
 ### 6.2 Spikes
 
-Six spikes, 5.25 days in total, inside the 12 working days of Phase 0 (D87). They run in the order below: S2
-comes first because S1's first test needs the token S2 finds (D47). A spike that reaches its
-time-box without a go takes its fallback. Time-boxes are not extended. The workstation has no
-Docker (D89), so the spikes' images are built in the registry with `az acr build`, which works
-"natively within Azure, without a local Docker installation" [acr-build].
+Six spikes, sized at 5.25 days in total within the 12 at which Phase 0 is sized (D87). They run in the order below: S2
+comes first because S1's first test needs the token S2 finds (D47). The day figures are sizes and
+not boxes (D97). A spike is settled by its go criteria and not by the clock. If they are not met
+when the session that runs it stops, whether because a test failed or because the work was not
+finished, that session reports what it found, with the fallback ready, and the owner chooses the
+fallback or another session. No spike takes its fallback by itself: each fallback below is the
+named one, and the owner takes it. The workstation has no
+Docker (D89), so the spikes' images are built in the container registry with `az acr build`, which works
+"natively within Azure, without a local Docker installation" [acr-build]. A session runs those
+builds, into repositories under `scratch/` (D98, section 3.2). In the registry's mode a build has
+no access of its own: "For Quick Tasks, you must use the caller's identity to authenticate the
+Quick Task to the source registry" [acr-abac], so the command carries
+`--source-acr-auth-id [caller]` and the caller is the owner's login, whose roles section 4 gives.
+The condition on that login's write role is shown working and not assumed (D31): at the first
+build, a build to a name outside `scratch/` must be refused, and the owner is told if it is not.
 
 **S2. Identity at each hop (1 day).** What token reaches salon-mcp and the gateway from a hosted
 agent, and can it be mapped to a tenant?
@@ -1508,11 +1561,12 @@ agent, and can it be mapped to a tenant?
   through the gateway reaches the agent and returns, with the caller's token validated at the
   gateway for the Foundry audience and forwarded unchanged; the same caller with no caller row is
   refused at the gateway with 403; and the caller rate limit returns 429 (D80).
-- Test 6 runs last, in three quarters of a day of its own that holds the minimal route and the
-  test and is not extended (D81, D87). The day before it already holds five tests, a desk check
-  and a purge cycle, which is why the test was given its own time. It is still the first thing
-  dropped: if it fails or its time runs out, the agent path drops, and the ADR records which it
-  was. It has three outcomes:
+- Test 6 runs last and is sized at three quarters of a day of its own, which holds the minimal
+  route and the test (D81, D87). The day before it already holds five tests, a desk check
+  and a purge cycle, which is why the test was given its own time. It is settled by its criteria
+  and not by the clock (D97): if it fails, or has not passed by the end of the session that runs
+  it, that session reports and the owner chooses whether the agent path drops or another session
+  tries again. The ADR records the outcome and the reason. It has three outcomes:
   - *Kept, with a join key.* The agent path is governed at the gateway and a direct call is
     reported, within the limits stated in section 5.4.
   - *Kept, without a join key.* The agent path is governed at the gateway. Every statement that a
@@ -1527,11 +1581,14 @@ agent, and can it be mapped to a tenant?
   with a valid token still succeeds, which D71 expects; the number of tool calls in one gate
   run, which sets the tool rate limit; and, for the agent route, which key joins an agent turn to
   the gateway request that carried it, and whether the gateway continues a trace context that the
-  caller sent, which would let a caller choose the key (D80).
+  caller sent, which would let a caller choose the key (D80). Since D100 test 1 also records,
+  for each of the two deployments, whether one call that asks for a strict schema, made from the
+  container through the gateway by the LangChain integration, is accepted, and what comes back
+  (section 2.5).
 - No-go fallback: if test 3 fails, keep the gateway for metering and budget on the intended path,
   add a check that compares model usage with gateway usage, and downgrade the claim from "cannot be
   bypassed" to "bypass is detected". Network egress controls on the hosted agent, in preview
-  [guardrail-egress], are tried first within the time-box as the way to close the path, because
+  [guardrail-egress], are tried first as the way to close the path, because
   the permissions reference lists a model deployment in the account among a hosted agent's
   required resources [ha-perm]. Foundry's AI Gateway is built only if test 3 fails and the desk
   check found a route with no portal step, which review 04 did not.
@@ -1611,15 +1668,15 @@ agent, and can it be mapped to a tenant?
 | Task adherence and intent resolution evaluators | Marked preview [agent-evals] | Evaluator names in the dataset | Groundedness and custom graders |
 | Foundry AI Gateway (desk check; built only if S1 needs it) | Preview: Microsoft's API Management page heads it "AI gateway in Microsoft Foundry (preview)" [apim-aigw]. Set up through the portal [ai-gw] | None available | Standalone gateway |
 | Hosted agent network egress controls (S1 tries them first) | Preview [guardrail-egress] | Rule set in IaC | Path without them |
-| azd `azure.ai.agents` extension | Beta: the registry's latest is 1.0.0-beta.18, "Foundry agents (Beta)" [azd-registry]; the official sample requires `>=1.0.0-beta.9` [sample-hitl] | Exact version | Deploy through the REST API [deploy] |
+| azd `azure.ai.agents` extension | Beta: the registry's latest is 1.0.0-beta.19, "Foundry agents (Beta)" [azd-registry]; the official sample requires `>=1.0.0-beta.9` [sample-hitl] | Exact version | Deploy through the REST API [deploy] |
 | Azure MCP server (harness only) | 2.0.5, the generally available line (D64) [azure-mcp-readme] | Exact version | az and azd |
 | Foundry durable state store, behind `FoundryCheckpointSaver` | "During preview, the state store is available only to hosted agents"; items up to 1 MB [state-store] | Container protocol 2.0.0; `langchain-azure-ai` 1.2.10 with the hosting extra [pypi-lcazure] | `CosmosDBSaver` on Cosmos DB serverless (spike S3) |
 | Hosting protocol libraries | `azure-ai-agentserver-core` 2.2.0, `-responses` 2.2.0 and `-invocations` 1.2.0, all stable releases [pypi-agentserver]. The hosting extra sets floors, `>=2.1.0b2` for the first two and `>=1.1.0b1` for the third, and not pins [pypi-lcazure]; review 04 saw the libraries as beta | Exact versions | None: they are the protocol; the thin adapter limits the blast radius |
-| MCP server and client | FastMCP 4.0.10 and `mcp` 2.3.0 on specification 2026-07-28 [mcp-spec]; released packages, pinned because the specification moved a major revision in July 2026 | Exact versions, server and client together | None needed; the pins are the control |
+| MCP server and client | FastMCP 4.1.0 and `mcp` 2.3.0 on specification 2026-07-28 [mcp-spec]; released packages, pinned because the specification moved a major revision in July 2026. FastMCP 4.1.0 changes one behaviour this design meets: "**HTTP sessions** now expire after the MCP SDK's 30-minute idle default instead of never" [fastmcp-release], so the graph opens its tool session for each turn and never reuses an idle one | Exact versions, server and client together | None needed; the pins are the control |
 | API Management MCP server entity (D73) | The `apis` resource at API version 2025-09-01-preview [apim-mcp-rest]; the pass-through feature itself is generally available on Basic v2 [apim-mcp] | Exact API version | `az rest` at the same version |
 | Admin-connected model as the eval judge (D75) | Preview: "might not be available in all regions" [eval-admin-models] | Connection name and deployment pinned | A judge deployment on resource A for the gate run, with the window recorded |
 | API Management in front of the hosted agent endpoint (D80) | No page was found that describes it: Microsoft documents its gateway as a proxy for agents that run outside Foundry [custom-agent]. The route is an ordinary HTTP API, and `validate-azure-ad-token` applies to all tiers [apim-validate] | Policies in the repository | Callers reach the Foundry endpoint directly, as before D80; the agent path becomes a Phase 2 item |
-| LangGraph | 1.2.12; the official sample pins 1.2.11 [sample-hitl] | Exact version | None |
+| LangGraph | 1.2.14; the official sample pins 1.2.11 [sample-hitl] | Exact version | None |
 | Pydantic (D90) | 2.14.0, a released package, two days old on 2026-10-10 [pypi-pydantic]; already in the dependency tree of the pinned libraries | Exact version, in the plan | The release before it |
 | Microsoft's tracing integration for LangChain and LangGraph | The page is titled preview [trace-framework]; tracing itself is generally available for hosted agents [trace-concept] | The tracer's version, pinned with `langchain-azure-ai` | The span processor of section 5.6 on plain OpenTelemetry spans |
 | Custom blocklist on the model deployments' guardrail (D91) | The page carries no preview label; "Blocklist support is limited to Azure OpenAI models" [blocklist] | Blocklist and policy in IaC | The test is dropped and the filter is recorded as present but not shown |
@@ -1703,7 +1760,7 @@ two gate runs do not fit in a day the owner chooses the quota again with the mea
   £0.09 a night. Together that is about £2.30 over 21 working days (D92). These are estimates
   built on an estimate; the baseline day measures them.
 - A spike image built in the registry with `az acr build` [acr-build] costs £0.0001 for each vCPU
-  second of the build [prices], pence an image (D89).
+  second of the build [prices], pence an image (D89, D98).
 - The tool path through the gateway adds no item: the MCP server entity, its policies and its
   metrics bill nothing beyond the hours the gateway exists (D71). Standard v2, the Phase 2 lock, is
   £0.7237 an hour [prices], £97.70 at 135 hours, which is why the lock is a budget decision.
@@ -1745,6 +1802,7 @@ automatable rows are end-to-end tests named in the plan (D88).
 | Gateway cycle | The default `down` then `up` reaches a passing smoke test with the agent version unchanged | After `down`, no gateway remains | Spike S5 record |
 | Rebuild from nothing | `up` after a full `down` serves the digest in the latest release record | After a full `down`, no billable resource remains in the environment group | Spike S5 record |
 | Budget | The budget and its alerts exist | Not applicable: budgets do not block | Budget definition in IaC |
+| Session image builds (D98) | A session's build into a repository under `scratch/` succeeds | A build to a name outside `scratch/` is refused | Build output |
 | Spikes | Each has a result | Each no-go has taken its fallback | Six ADRs |
 
 Phase 0 is complete when all rows pass, this spec has been updated for the spike results, and the
@@ -1777,7 +1835,7 @@ council has reviewed the change.
 | Approval and promotion | An approved candidate becomes the served version | A rejected one leaves the served version unchanged | Release records |
 | Provenance | The served digest's attestation verifies against this repository | A digest without an attestation is not promoted | Verification output |
 | Rollback | After a promotion, the selector is moved back and a new session uses the previous version | Not applicable | Restore record |
-| Served-image check | The served digest equals the latest approved record | A version served outside the gate is detected and the check fails | Workflow run |
+| Served-image check | The served digest equals the latest approved record | A version served outside the gate is detected and the check fails; so is salon-mcp running an image from `scratch/` once a release exists (D98) | Workflow run |
 | Traceability | A release record and its GitHub Release name the pull request, commit, eval run and approver | Not applicable | Release record and Release |
 | Evidence survives teardown | After a full `down`, traces, audit rows and release records are still readable, and the Releases are public | The environment group is empty | Queries run after `down` |
 | Dashboard | The Workbook shows tokens, cost, latency and eval results by tenant and agent | Not applicable | Screenshot in the pull request |
@@ -1796,15 +1854,21 @@ outside these criteria (D32).
 | 1 | 2 | Hosted agent, gateway policies for the model and tool paths (D71) and the agent path (D80), telemetry and attribution, guardrail, the output filter's test (D91), the Defender trial (D66) |
 | 1 | 3, and five and three quarter days (D87, D94) | Eval gate and scripted write tests, release pipeline with attestation, rollback drill, Workbook, the nightly evaluation of the served version (D92), exit demonstrations, council gate |
 
-Phase 0 is 12 working days and Phase 1 is 20.75 (D94). D87 had set Phase 1 at 18, amending D81
+Phase 0 is sized at 12 working days and Phase 1 at 20.75 (D94). D87 had set Phase 1 at 18, amending D81
 after principal review 06 found the estimates too low. D94 added two and three quarter days, on
 the independent estimate made when this revision was read: a day for the typed contracts, half a
 day for the output filter's test, a day for the nightly evaluation, and a quarter of a day for
 the loop's records and the fifth test identity. The agent route is estimated at two and a quarter days, three
-quarters of a day in Phase 0 and a day and a half in Phase 1. Both boxes are filled exactly.
-The implementation plan gives the days step by step.
+quarters of a day in Phase 0 and a day and a half in Phase 1.
 
-If a time-box is at risk, scope is cut in the order below and the date holds (D30, D48).
+These figures are sizes and not boxes (D97). They order the work, and each journal entry records
+the time a step took against its figure. No scope is cut because a figure has been passed. The
+implementation plan gives the days step by step, and says which steps may run in parallel
+sessions. There is one dev environment, with one gateway and one daily token quota, so only one
+session at a time holds it: that session alone deploys to it and runs live tests against it.
+
+The orders below are the order in which the owner would cut scope, and only the owner invokes
+them (D30, D48, D97).
 
 Phase 0. The first two items of D48's order, the cloud environment setup script and the verifier
 subagent, are applied already and move to after Phase 1 (D81). What remains, in order:
@@ -1814,8 +1878,8 @@ subagent, are applied already and move to after Phase 1 (D81). What remains, in 
 
 Cut items move to after Phase 1; D36 otherwise stands. Never cut in Phase 0: the bootstrap, CI with
 OIDC, repository protections, the secrets hook and scanning, the seed eval set, and spikes S1, S2,
-S5 and S6. Inside spike S1, test 6 has three quarters of a day of its own, which is not extended:
-if the test fails or its time runs out, the agent path becomes a Phase 2 item (D80, D81, D87).
+S5 and S6. Inside spike S1, test 6 is sized at three quarters of a day of its own. If it fails
+and the owner chooses the fallback, the agent path becomes a Phase 2 item (D80, D81, D87, D97).
 
 Phase 1:
 
@@ -1870,8 +1934,8 @@ Design risks:
 |---|---|
 | The gateway budget can be bypassed | Spike S1, with a stated downgrade of the claim if it cannot be closed |
 | No page was found that describes API Management in front of a hosted agent's own endpoint | Spike S1, test 6, with a stated fallback: callers reach the Foundry endpoint directly and the agent path moves to Phase 2 (D80) |
-| Test 6 is dropped for lack of time, not on evidence | The test has three quarters of a day of its own, which is not extended (D81, D87); the ADR records which it was |
-| Neither phase has slack: the boxes of D87 and D94 are filled exactly, and Phase 0 has little left to cut | The cut orders of section 10, where the agent route is the second item in Phase 1; in Phase 0, the spikes' fallbacks |
+| Test 6 has not passed when the session that runs it ends | That session reports, with the fallback ready, and the owner chooses. The route is no longer dropped on time alone (D97). The ADR records the outcome and the reason |
+| The day figures are too low again: three estimates of the last additions ran from one day to about four | The figures are sizes and decide nothing (D97). The journal records the time each step took against its figure, and the cut orders of section 10 are the owner's to invoke |
 | The gateway handles callers' Foundry tokens, which are valid beyond this agent (D80) | The `Authorization` header is never recorded; policy changes go through pull requests; the served-image check catches a promotion made outside the gate; the pipeline's calls are made as a consumer-only identity (D86) |
 | A caller row and a Foundry role can drift apart (D80) | Stated in section 4; a comparison of the two is built only if spike S1 keeps the route without a join key, and then runs in `up` under the owner's login (D86) |
 | The quota counter restarts when the gateway is purged | A daily quota, and a monthly figure reported from persisted metrics with an alert (D39) |
@@ -1883,7 +1947,7 @@ Design risks:
 | The state store is in preview, the azd extension is beta, and the hosting libraries have only recently left beta | Pinned in section 7; the thin adapter; `CosmosDBSaver` as the state fallback |
 | The MCP stack moves a major revision again | Server and client pinned together in section 7 |
 | Learn pages disagree on traffic splitting | Spike S5 records which is right; the gate does not depend on it |
-| Public endpoints for the agent, the gateway and salon-mcp | Entra tokens on every hop; private networking recorded as out of scope (D52) |
+| Public endpoints for the agent, the gateway and salon-mcp, and for the two storage accounts, the search service and the container registry | Entra tokens on every hop, and role-based access with keys switched off on the data services; private networking recorded as out of scope (D52) |
 | Evidence expires: workflow logs at 90 days, log tables at 30 or 90 | Release records in the persistent storage account and as GitHub Releases (D43) |
 | Promotion is separated from a candidate deploy only by GitHub | Environments limited to `main`, a required reviewer, and the served-image check (D42) |
 | A full rebuild cannot restore the approved image | Spike S5 proves it; the fallback goes back to the owner |
@@ -1899,7 +1963,10 @@ Design risks:
 | The nightly workflow signs in as the pipeline identity as well as the teardown identity (D92) | The `dev` environment's credential is limited to that environment and to `main`; the step creates evaluation runs and deploys nothing |
 | The nightly evaluation fails to run on a day the pipeline has used the quota (D92) | It is reported under its own name and not as drift; the daily quota the owner sets after spike S6 covers one gate run and the sample (D39) |
 | The eval set grows from the sender's own words | True only while every caller is a test identity, the pipeline or the owner (D33); the Phase 2 eval twin is the route after that (D93) |
-| Six spikes overrun | Fixed time-boxes with fallbacks; a Phase 0 cut order (D48) |
+| A spike does not reach its go criteria | Each has a stated fallback. The session that runs it reports at its end, and the owner chooses the fallback or another session (D97) |
+| A session writes images into the container registry, which is in the persistent group (D98) | Only into repositories under `scratch/`, by a condition on the write role of the login it uses. Release images come from the candidate job alone and are attested. The condition guards against accident and not against intent (D20) |
+| The condition on the owner's write role does not hold, or blocks a build it should allow | Shown at the first spike build: a build to a name outside `scratch/` must be refused (D31). Either way the owner is told and chooses, and the condition is not removed without the owner's yes (D98) |
+| Steps built in parallel sessions collide (D97) | One branch and one pull request for each step, and one session at a time holding the dev environment. The plan says which steps wait for which. The rule is written, not enforced (D20) |
 
 **Regulated-industry requirements, and where the design meets them.** Recorded at the owner's
 request on 2026-10-04 against an external note; the gateway as the one boundary for models and
@@ -1936,13 +2003,14 @@ For the implementation plan:
   the tool choices for mutation testing, the import contracts and the BDD runner.
 - The names and flags of the two forms of `down`.
 - The catalogue and FAQ seed content, and the 110 rows of the eval set, signed by the owner (D67).
-- The wording of the two new fixed replies and the planted term of the output filter's test
-  (D90, D91).
+- The wording of the three new fixed texts, which are the two new fixed replies and the fixed
+  decline of section 5.1, four fixed texts in all with the reply of D46, and the planted term of
+  the output filter's test (D90, D91, D101).
 
 ## 13. References
 
 All opened on 2026-10-03; the rows added for D71 to D88 were opened on 2026-10-04, and the rows
-added for D89 to D96 on 2026-10-10.
+added for D89 to D101 on 2026-10-10.
 
 | Key | Source |
 |---|---|
@@ -2094,3 +2162,8 @@ added for D89 to D96 on 2026-10-10.
 | [human-eval] | https://learn.microsoft.com/azure/foundry/observability/how-to/human-evaluation |
 | [feedback] | https://learn.microsoft.com/azure/foundry/observability/how-to/log-end-user-feedback |
 | [acr-build] | https://learn.microsoft.com/azure/container-registry/container-registry-quickstart-task-cli |
+| [acr-abac] | https://learn.microsoft.com/azure/container-registry/container-registry-rbac-abac-repository-permissions |
+| [acr-roles] | https://learn.microsoft.com/azure/container-registry/container-registry-rbac-built-in-roles-directory-reference |
+| [acr-roles-overview] | https://learn.microsoft.com/azure/container-registry/container-registry-rbac-built-in-roles-overview |
+| [bicep-overview] | https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview |
+| [fastmcp-release] | https://github.com/PrefectHQ/fastmcp/releases/tag/v4.1.0 |
