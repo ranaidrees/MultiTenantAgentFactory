@@ -170,7 +170,7 @@ Time, from tool and commit clocks, so approximate. No step had an estimate, and 
 - Local tools on the workstation: Bicep 0.48.1, uv 0.13.0, azd 1.35.0 with `azure.ai.agents`
   1.0.0-beta.18. No Docker.
 - [CLAUDE.md](../../CLAUDE.md): the architecture summary names typed contracts, the output filter's
-  test and the nightly evaluation, on the owner's yes. 81 lines.
+  test and the nightly evaluation, on the owner's yes. 82 lines.
 - No application code, no infrastructure, no Azure write. `/cleanup` found nothing to remove.
 
 ## 6. Reusable lessons
